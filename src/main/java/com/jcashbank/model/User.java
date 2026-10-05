@@ -2,6 +2,7 @@ package com.jcashbank.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,20 +29,38 @@ public class User {
     @OrderBy("transactionDate DESC")
     private List<Transaction> transactions = new ArrayList<>();
 
+    @Column(nullable = false, unique = true, length = 150)
+    private String email;
+
+    @Column(nullable = false)
+    private int failedLoginAttempts;
+
+    @Column(nullable = false)
+    private boolean accountLocked;
+
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
+
     public User() {}
 
-    public User(String mobileNumber, String pin, String fullName) {
+    public User(String mobileNumber, String pin, String fullName, String email) {
         this.mobileNumber = mobileNumber;
         this.pin = pin;
         this.fullName = fullName;
         this.balance = BigDecimal.ZERO;
+        this.email = email;
+        this.accountLocked = false;
+        this.failedLoginAttempts = 0;
     }
 
-    public User(String mobileNumber, String pin, String fullName, BigDecimal balance) {
+    public User(String mobileNumber, String pin, String fullName, BigDecimal balance, String email) {
         this.mobileNumber = mobileNumber;
         this.pin = pin;
         this.fullName = fullName;
         this.balance = balance == null ? BigDecimal.ZERO : balance;
+        this.email = email;
+        this.accountLocked = false;
+        this.failedLoginAttempts = 0;
     }
 
     public Long getId() { return id; }
@@ -57,6 +76,20 @@ public class User {
     public List<Transaction> getTransactions() { return transactions; }
     public void setTransactions(List<Transaction> transactions) { this.transactions = transactions; }
 
+    public String getEmail() {return email;}
+    public void setEmail(String email) {this.email = email;}
+    public int getFailedLoginAttempts() {return failedLoginAttempts;}
+    public void setFailedLoginAttempts(int failedLoginAttempts) {this.failedLoginAttempts = failedLoginAttempts;}
+    public boolean isAccountLocked() {return accountLocked;}
+    public void setAccountLocked(boolean accountLocked) {this.accountLocked = accountLocked;}
+    public String getResetToken() {return resetToken;}
+    public void setResetToken(String resetToken) {this.resetToken = resetToken;}
+    public LocalDateTime getResetTokenExpiry() {return resetTokenExpiry;}
+
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
+        this.resetTokenExpiry = resetTokenExpiry;
+    }
+
     public void addTransaction(Transaction transaction) {
         transactions.add(transaction);
         transaction.setUser(this);
@@ -65,5 +98,8 @@ public class User {
     public void removeTransaction(Transaction transaction) {
         transactions.remove(transaction);
         transaction.setUser(null);
+    }
+
+    public void setLockTime(Object o) {
     }
 }

@@ -5,9 +5,6 @@ import com.jcashbank.model.User;
 import com.jcashbank.service.TransactionService;
 import com.jcashbank.service.UserService;
 import jakarta.servlet.http.HttpSession;
-//import jakarta.validation.constraints.NotBlank;
-//import jakarta.validation.constraints.Pattern;
-//import jakarta.validation.constraints.Positive;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -43,22 +40,17 @@ public class BankingController {
             HttpSession session,
             Model model) {
 
-        int attempts = getLoginAttempts(session);
-        if (attempts >= MAX_LOGIN_ATTEMPTS) {
-            model.addAttribute("error", "Maximum of 3 login attempts reached. Please start a new session.");
-            return "login";
-        }
-
         try {
+            // UserService.authenticate handles database lookups,
+            // BCrypt matching, failed attempt increments, and account locking.
             User user = userService.authenticate(mobileNumber.trim(), pin.trim());
+
             session.setAttribute(SESSION_USER_ID, user.getId());
-            session.setAttribute(SESSION_LOGIN_ATTEMPTS, 0);
             return "redirect:/dashboard";
+
         } catch (BankingException ex) {
-            attempts++;
-            session.setAttribute(SESSION_LOGIN_ATTEMPTS, attempts);
-            int remaining = MAX_LOGIN_ATTEMPTS - attempts;
-            model.addAttribute("error", ex.getMessage() + (remaining > 0 ? " Attempts remaining: " + remaining : ""));
+            // Display whatever error UserService throws (e.g., "Attempts remaining: 2" or "Account locked")
+            model.addAttribute("error", ex.getMessage());
             return "login";
         }
     }
@@ -141,5 +133,39 @@ public class BankingController {
     private int getLoginAttempts(HttpSession session) {
         Object value = session.getAttribute(SESSION_LOGIN_ATTEMPTS);
         return value instanceof Integer ? (Integer) value : 0;
+    }
+
+    @GetMapping("/forgot-pin")
+    public String forgotPinPage() {
+        return "forgot-pin";
+    }
+
+    @PostMapping("/forgot-pin")
+    public String processForgotPin(@RequestParam String email, Model model) {
+        try {
+            userService.processForgotPassword(email.trim());
+            model.addAttribute("success", "Password reset instructions have been sent to your email.");
+        } catch (BankingException ex) {
+            model.addAttribute("error", ex.getMessage());
+        }
+        return "forgot-pin";
+    }
+
+    @GetMapping("/reset-pin")
+    public String resetPinPage(@RequestParam String token, Model model) {
+        model.addAttribute("token", token);
+        return "reset-pin";
+    }
+
+    @PostMapping("/reset-pin")
+    public String processResetPin(@RequestParam String token, @RequestParam String newPin, Model model) {
+        try {
+            userService.resetPin(token, newPin);
+            return "redirect:/login?success=PIN successfully reset. You can now log in.";
+        } catch (BankingException ex) {
+            model.addAttribute("error", ex.getMessage());
+            model.addAttribute("token", token);
+            return "reset-pin";
+        }
     }
 }

@@ -81,7 +81,7 @@
 
         <!-- Transaction Rows -->
         <div class="space-y-4">
-            <div th:each="tx : ${transactions}" class="flex items-center justify-between p-4 bg-slate-50/80 rounded-2xl border border-slate-100/80 hover:bg-slate-100/80 transition-colors">
+            <div th:each="tx, iterStat : ${transactions}" th:if="${iterStat.index < 10}" class="flex items-center justify-between p-4 bg-slate-50/80 rounded-2xl border border-slate-100/80 hover:bg-slate-100/80 transition-colors">
                 <div>
                     <strong class="block text-slate-900 text-sm font-extrabold" th:text="${tx.type}">CASH_IN</strong>
                     <small class="text-slate-500 text-xs font-medium" th:text="${tx.details}">Details</small>
