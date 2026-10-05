@@ -1,4 +1,4 @@
-# JCash Bank — Spring Boot Application
+# JCasheesh Bank — Spring Boot Application
 
 A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the JCash Banking App requirements in the Java NC III assessment PDF.
 
@@ -28,7 +28,7 @@ A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the J
 - Spring Web
 - Spring Data JPA
 - Thymeleaf
-- H2 Database
+- PostgreSQL Database
 - Maven
 
 ## Run
@@ -60,20 +60,15 @@ java -jar target/jcash-bank-1.0.0.jar
 
 ## Database
 
-The default configuration uses a file-based H2 database at `./data/jcashdb` so data survives application restarts.
+The application is configured to use a *PostgreSQL* database for robust data persistence.
 
-H2 console:
+### Configuration (application.properties)
 
-http://localhost:8080/h2-console
+Make sure your src/main/resources/application.properties contains your PostgreSQL connection details:
 
-JDBC URL:
-
-`jdbc:h2:file:./data/jcashdb`
-
-User: `sa`
-
-Password: blank
-
-## Important assessment note
-
-The PDF asks for a PIN attribute but does not specify password hashing. This implementation keeps the PIN simple for assessment/demo purposes. For a production banking system, use Spring Security and a password encoder such as BCrypt rather than storing PINs as plain text.
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/jcash_bank
+spring.datasource.username=postgres
+spring.datasource.password=********
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
