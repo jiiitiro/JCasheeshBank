@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JCasheez - Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-tr from-purple-900 via-indigo-950 to-blue-900 min-h-screen text-slate-800 pb-12">
+
+<!-- Top Navigation Bar -->
+<header class="w-full bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 px-4 sm:px-8 py-3 flex items-center justify-between shadow-sm">
+    <a th:href="@{/dashboard}" class="flex items-center">
+        <img th:src="@{/images/logo.svg}" alt="JCasheesh Logo" class="w-48 h-auto drop-shadow-sm">
+    </a>
+    <div class="flex items-center gap-4">
+        <span class="text-sm font-bold text-slate-700 hidden sm:inline" th:text="${user.fullName}">User</span>
+        <form method="post" th:action="@{/logout}">
+            <button class="px-4 py-2 bg-pink-100 hover:bg-pink-200 text-pink-700 text-xs font-extrabold rounded-xl transition-all active:scale-95" type="submit">Logout</button>
+        </form>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="max-w-4xl mx-auto px-4 mt-8 space-y-6">
+
+    <!-- Success Alert Banner -->
+    <div th:if="${param.success}" class="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 text-sm rounded-r-2xl shadow-sm font-medium" th:text="${param.success}">
+        Success message
+    </div>
+
+    <!-- Hero Balance Card -->
+    <section class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-[2.5rem] p-8 sm:p-10 text-white shadow-2xl shadow-indigo-600/30 relative overflow-hidden">
+        <!-- Decorative background elements -->
+        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <p class="text-indigo-200 text-xs font-bold uppercase tracking-wider">Available Balance</p>
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight mt-1" th:text="|₱${#numbers.formatDecimal(user.balance, 1, 2)}|">₱0.00</h1>
+            <p class="text-indigo-100 text-sm font-semibold mt-3 bg-white/15 inline-block px-3 py-1 rounded-full backdrop-blur-md" th:text="${user.mobileNumber}">09xxxxxxxxx</p>
+        </div>
+    </section>
+
+    <!-- Quick Actions Grid -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a class="bg-white/90 backdrop-blur-xl hover:bg-white p-6 rounded-3xl border border-white/40 shadow-xl shadow-slate-900/5 flex flex-col items-center text-center transition-all transform hover:-translate-y-1 group" th:href="@{/cash-in}">
+            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black mb-3 group-hover:scale-110 transition-transform">＋</div>
+            <strong class="text-slate-900 font-extrabold text-base">Cash In</strong>
+            <small class="text-slate-400 text-xs mt-0.5 font-medium">Add funds safely</small>
+        </a>
+
+        <a class="bg-white/90 backdrop-blur-xl hover:bg-white p-6 rounded-3xl border border-white/40 shadow-xl shadow-slate-900/5 flex flex-col items-center text-center transition-all transform hover:-translate-y-1 group" th:href="@{/transfer}">
+            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl font-black mb-3 group-hover:scale-110 transition-transform">↗</div>
+            <strong class="text-slate-900 font-extrabold text-base">Transfer</strong>
+            <small class="text-slate-400 text-xs mt-0.5 font-medium">Send money fast</small>
+        </a>
+
+        <a class="bg-white/90 backdrop-blur-xl hover:bg-white p-6 rounded-3xl border border-white/40 shadow-xl shadow-slate-900/5 flex flex-col items-center text-center transition-all transform hover:-translate-y-1 group" th:href="@{/transactions}">
+            <div class="w-12 h-12 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center text-xl font-black mb-3 group-hover:scale-110 transition-transform">☷</div>
+            <strong class="text-slate-900 font-extrabold text-base">Transactions</strong>
+            <small class="text-slate-400 text-xs mt-0.5 font-medium">View records</small>
+        </a>
+    </section>
+
+    <!-- Recent Transactions Card -->
+    <section class="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] p-6 sm:p-8 border border-white/40 shadow-2xl shadow-slate-900/10">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+            <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Recent Activity</h2>
+            <a class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors" th:href="@{/transactions}">View all →</a>
+        </div>
+
+        <!-- Empty State -->
+        <div th:if="${#lists.isEmpty(transactions)}" class="text-center py-12 text-slate-400 font-medium text-sm">
+            No transactions yet bestie. Time to fund your account! 🚀
+        </div>
+
+        <!-- Transaction Rows -->
+        <div class="space-y-4">
+            <div th:each="tx : ${transactions}" class="flex items-center justify-between p-4 bg-slate-50/80 rounded-2xl border border-slate-100/80 hover:bg-slate-100/80 transition-colors">
+                <div>
+                    <strong class="block text-slate-900 text-sm font-extrabold" th:text="${tx.type}">CASH_IN</strong>
+                    <small class="text-slate-500 text-xs font-medium" th:text="${tx.details}">Details</small>
+                </div>
+                <div class="text-right">
+                    <strong class="block text-slate-900 text-sm font-extrabold" th:text="|₱${#numbers.formatDecimal(tx.amount, 1, 2)}|">₱0.00</strong>
+                    <small class="text-slate-400 text-[11px] font-medium" th:text="${#temporals.format(tx.transactionDate, 'MMM d, yyyy h:mm a')}">Date</small>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+</body>
+</html>
