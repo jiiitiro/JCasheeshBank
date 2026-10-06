@@ -3,12 +3,15 @@ package com.jcashbank.service;
 import com.jcashbank.exception.BankingException;
 import com.jcashbank.model.User;
 import com.jcashbank.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,6 +21,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+
 
     public UserService(UserRepository userRepository, JavaMailSender mailSender, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
@@ -32,7 +36,7 @@ public class UserService {
 
         // Check if account is already locked
         if (user.isAccountLocked()) {
-            throw new BankingException("Maximum 3 failed attempts reached. This mobile number is now locked.");
+            throw new BankingException("Maximum 3 failed attempts reached. This mobile number is locked. Please check your email to reset your PIN.");
         }
 
         // Verify PIN using passwordEncoder
@@ -43,24 +47,52 @@ public class UserService {
             if (attempts >= 3) {
                 user.setAccountLocked(true);
                 user.setLockTime(LocalDateTime.now());
+
+                // Generate a secure unique token
+                String token = UUID.randomUUID().toString();
+                user.setResetToken(token);
+                user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 30 mins
+                userRepository.saveAndFlush(user);
+
+                // Register a callback to send the email ONLY after the transaction commits successfully
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            String resetLink = "http://localhost:8080/reset-pin?token=" + token;
+                            SimpleMailMessage message = new SimpleMailMessage();
+                            message.setFrom("agreemo.greenhouse@gmail.com");
+                            message.setTo(user.getEmail());
+                            message.setSubject("JCasheesh! - Mobile Number Locked & PIN Reset");
+                            message.setText("Hi " + user.getFullName() + ",\n\n" +
+                                    "Your JCasheesh! mobile number has been locked due to 3 failed login attempts.\n\n" +
+                                    "You can reset your PIN and unlock your account by clicking the link below:\n" +
+                                    resetLink + "\n\n" +
+                                    "This link expires in 15 minutes.\n\n" +
+                                    "If you did not attempt to log in, please secure your account immediately.");
+
+                            mailSender.send(message);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+
+                throw new BankingException("Maximum 3 failed attempts reached. Account locked. A reset PIN link has been sent to your email.");
             }
 
-            // Force save and commit to DB before throwing the exception
             userRepository.saveAndFlush(user);
-
-            if (attempts >= 3) {
-                throw new BankingException("Maximum 3 failed attempts reached. This mobile number is now locked.");
-            }
-
             int remaining = 3 - attempts;
             throw new BankingException("Mobile number or PIN is incorrect. Attempts remaining: " + remaining);
         }
 
-        // Successful login: Reset failed attempts counter
+        // Successful login: Reset failed attempts counter and locks
         if (user.getFailedLoginAttempts() > 0 || user.isAccountLocked()) {
             user.setFailedLoginAttempts(0);
             user.setAccountLocked(false);
             user.setLockTime(null);
+            user.setResetToken(null);
+            user.setResetTokenExpiry(null);
             userRepository.save(user);
         }
 
@@ -101,6 +133,7 @@ public class UserService {
         mailSender.send(message);
     }
 
+    @Transactional
     public void resetPin(String token, String newPin) {
         User user = userRepository.findByResetToken(token)
                 .orElseThrow(() -> new BankingException("Invalid or expired password reset token."));
@@ -109,15 +142,17 @@ public class UserService {
             throw new BankingException("Reset token has expired. Please request a new one.");
         }
 
-        user.setPin(newPin);
+        // Encrypt the new PIN using BCrypt PasswordEncoder
+        user.setPin(passwordEncoder.encode(newPin));
+
+        // Clear tokens and unlock the account
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
-        user.setFailedLoginAttempts(0); // Also clear failed attempts/locks upon successful reset!
+        user.setFailedLoginAttempts(0);
         user.setAccountLocked(false);
+        user.setLockTime(null);
+
         userRepository.save(user);
     }
-
-
-
 
 }
