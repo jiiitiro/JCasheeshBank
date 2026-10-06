@@ -26,7 +26,7 @@
         <p id="form-subtitle" class="text-slate-500 text-sm mt-1">Drop your deets to log in.</p>
     </div>
 
-    <!-- Error Message Alert -->
+    <!-- Login General Error Message Alert -->
     <div th:if="${error}" class="mb-6 p-4 bg-pink-50 border-l-4 border-pink-500 text-pink-700 text-sm rounded-r-2xl shadow-sm font-medium" role="alert">
         <span th:text="${error}">Error message placeholder</span>
     </div>
@@ -79,9 +79,15 @@
 
     <!-- REGISTER FORM (Hidden by default) -->
     <form id="register-form" method="post" th:action="@{/register}" class="space-y-4 hidden">
+
+        <!-- Register-Specific Error Alert -->
+        <div th:if="${registerError}" class="mb-4 p-3.5 bg-pink-50 border-l-4 border-pink-500 text-pink-700 text-xs rounded-r-xl shadow-sm font-medium" role="alert">
+            <span th:text="${registerError}">Register error placeholder</span>
+        </div>
+
         <div>
             <label for="fullName" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
-            <input id="fullname" name="fullName" type="text"
+            <input id="fullName" name="fullName" type="text"
                    required
                    pattern="[a-zA-Z\s\.\-]+"
                    oninput="this.value = this.value.replace(/[^a-zA-Z\s\.\-]/g, '')"
@@ -129,8 +135,8 @@
     </div>
 </div>
 
-<!-- Client-side tab switching script -->
-<script>
+<!-- Client-side tab switching & auto-state script -->
+<script th:inline="javascript">
     function switchTab(tab) {
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
@@ -155,6 +161,14 @@
             subtitle.textContent = "Set up your account in seconds.";
         }
     }
+
+    // Automatically open the register tab on page load if registration failed
+    document.addEventListener('DOMContentLoaded', () => {
+        const showRegister = /*[[${showRegister}]]*/ false;
+        if (showRegister) {
+            switchTab('register');
+        }
+    });
 </script>
 </body>
 </html>
