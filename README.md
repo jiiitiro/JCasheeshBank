@@ -1,25 +1,24 @@
 # JCasheesh Bank — Spring Boot Application
 
-A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the JCash Banking App requirements in the Java NC III assessment PDF.
+A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the JCash Banking App requirements, enhanced with advanced security features, email verification, and asynchronous notifications.
 
-## Requirements implemented
+## Requirements Implemented
 
-- User model with ID, mobile number, PIN, full name, balance, and transaction list
-- Transaction model with type, amount, details, and date/time
-- JPA persistence
-- Login with mobile number and PIN
-- Maximum 3 failed login attempts per session
-- Balance display after login
-- Cash-in with positive amount validation
-- Transfer by receiver mobile number
-- Receiver validation
-- Sender balance validation
-- Transfer to self prevented
-- Sender and receiver transaction records
-- Transaction history
-- Logout
-- Thymeleaf UI
-- Demo seed users
+- *User Model & Persistence*: Manages user details (ID, mobile number, encrypted PIN, full name, balance, verification status, and transaction list) using Spring Data JPA and PostgreSQL.
+- *Secure Authentication*:
+    - BCrypt password encoder for secure PIN storage and validation.
+    - Mandatory email verification flow upon registration (users cannot log in until their email is confirmed).
+    - Maximum 3 failed login attempts per session.
+- *Account Locking & PIN Reset*:
+    - Automatic account locking upon reaching 3 failed login attempts.
+    - Secure, time-sensitive token generation (15-minute expiry) for unlocking and resetting PINs.
+- *Asynchronous Email Infrastructure*: Non-blocking background email dispatching via CompletableFuture and JavaMailSender for account verification and security alerts.
+- *Core Banking Operations*:
+    - Balance display after login.
+    - Cash-in with positive amount validation.
+    - Transfer by receiver mobile number with receiver validation, self-transfer prevention, and sender balance verification.
+    - Comprehensive sender and receiver transaction records and history logs.
+- *Session & UI Management*: Secure login/logout states, Thymeleaf-powered UI, and demo seed users.
 
 ## Technology
 
@@ -27,6 +26,7 @@ A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the J
 - Spring Boot 3.5.6
 - Spring Web
 - Spring Data JPA
+- Spring Mail (JavaMailSender)
 - Thymeleaf
 - PostgreSQL Database
 - Maven
