@@ -3,17 +3,13 @@ package com.jcashbank.service;
 import com.jcashbank.exception.BankingException;
 import com.jcashbank.model.User;
 import com.jcashbank.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-
+import javax.naming.directory.Attributes;
+import javax.naming.directory.InitialDirContext;
+import java.util.Hashtable;
+import java.util.regex.Pattern;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -31,8 +27,9 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // Validation Helper
+    // Validation Methods
     private void validateMobileAndPin(String mobileNumber, String pin) {
+
         if (mobileNumber == null || !mobileNumber.matches("^09\\d{9}$")) {
             throw new BankingException("Invalid mobile number. It must start with '09' and be exactly 11 digits.");
         }
@@ -41,15 +38,74 @@ public class UserService {
         }
     }
 
+    private void validateRegistration(String fullName, String mobileNumber, String pin, String email) {
+        if (fullName == null || fullName.trim().isEmpty() || !fullName.matches("^[a-zA-Z\\s\\.\\-]+$")) {
+            throw new BankingException("Invalid full name. Please use only letters, spaces, dots, or hyphens.");
+        }
+        if (mobileNumber == null || !mobileNumber.matches("^09\\d{9}$")) {
+            throw new BankingException("Invalid mobile number. It must start with '09' and be exactly 11 digits.");
+        }
+        if (pin == null || !pin.matches("^\\d{4}$")) {
+            throw new BankingException("Invalid PIN. It must be exactly 4 digits.");
+        }
+
+        // Check if Mobile Number Already Exists
+        if (userRepository.findByMobileNumber(mobileNumber).isPresent()) {
+            throw new BankingException("This mobile number is already registered. Please use a different number or log in.");
+        }
+
+        // Check if Email Already Exists
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new BankingException("This email address is already registered.");
+        }
+    }
+
+    // Syntax Validation (Layer 1) ---
+    private boolean isValidEmailSyntax(String email) {
+        if (email == null) return false;
+        String emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
+        return Pattern.matches(emailRegex, email.trim());
+    }
+
+    // MX Record Domain Check (Layer 2) ---
+    private boolean hasValidMxRecord(String email) {
+        try {
+            String domain = email.substring(email.indexOf("@") + 1);
+            Hashtable<String, String> env = new Hashtable<>();
+            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+            InitialDirContext ctx = new InitialDirContext(env);
+            Attributes attrs = ctx.getAttributes(domain, new String[] {"MX"});
+            return attrs != null && attrs.get("MX") != null;
+        } catch (Exception e) {
+            // Domain does not exist or has no active mail server
+            return false;
+        }
+    }
+
+    // Proof Ownership (Layer 3)
+    @Transactional
+    public void verifyEmail(String token) {
+        User user = userRepository.findByVerificationToken(token)
+                .orElseThrow(() -> new BankingException("Invalid or expired verification token."));
+
+        if (user.getVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new BankingException("Verification token has expired. Please register again or request a new link.");
+        }
+
+        user.setEmailVerified(true);
+        user.setVerificationToken(null);
+        user.setVerificationTokenExpiry(null);
+        userRepository.save(user);
+    }
+
     @Transactional(noRollbackFor = BankingException.class)
     public User authenticate(String mobileNumber, String pin) {
         User user = userRepository.findByMobileNumber(mobileNumber)
                 .orElseThrow(() -> new BankingException("Mobile number or PIN is incorrect."));
 
-        validateMobileAndPin(user.getMobileNumber(), pin);
-
-        if (!user.isEmailVerified()) throw new BankingException("Please verify your email address first before logging in." +
-                "Check your inbox for the verification link.");
+        if (!user.isEmailVerified()) {
+            throw new BankingException("Please verify your email address first before logging in. Check your inbox for the verification link.");
+        }
 
         // Check if account is already locked
         if (user.isAccountLocked()) {
@@ -57,7 +113,7 @@ public class UserService {
             // Generate a secure unique token
             String token = UUID.randomUUID().toString();
             user.setResetToken(token);
-            user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 30 mins
+            user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
             userRepository.saveAndFlush(user);
 
             String resetLink = "http://localhost:8080/reset-pin?token=" + token;
@@ -75,6 +131,8 @@ public class UserService {
             throw new BankingException("Maximum 3 failed attempts reached. This mobile number is locked. Please check your email to reset your PIN.");
         }
 
+        validateMobileAndPin(user.getMobileNumber(), pin);
+
         // Verify PIN using passwordEncoder
         if (!passwordEncoder.matches(pin, user.getPin())) {
             int attempts = user.getFailedLoginAttempts() + 1;
@@ -87,7 +145,7 @@ public class UserService {
                 // Generate a secure unique token
                 String token = UUID.randomUUID().toString();
                 user.setResetToken(token);
-                user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 30 mins
+                user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
                 userRepository.saveAndFlush(user);
 
                 String resetLink = "http://localhost:8080/reset-pin?token=" + token;
@@ -183,8 +241,19 @@ public class UserService {
 
         validateMobileAndPin(user.getMobileNumber(), rawPin);
 
+        validateRegistration(user.getFullName(), user.getMobileNumber(), rawPin, user.getEmail());
+
+        // --- LAYER 1: Syntax Check --- EMAIL VALIDATION
+        if (!isValidEmailSyntax(user.getEmail())) {
+            throw new BankingException("Invalid email format syntax.");
+        }
+        // --- LAYER 2: MX Record Check --- EMAIL VALIDATION
+        if (!hasValidMxRecord(user.getEmail())) {
+            throw new BankingException("The email domain does not exist or cannot receive mail.");
+        }
+
         user.setPin(passwordEncoder.encode(rawPin));
-        user.setEmailVerified(false); // Block login initially
+        user.setEmailVerified(false);
 
         // Generate verification token
         String token = UUID.randomUUID().toString();
@@ -193,24 +262,10 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        // Clean & simple call to your EmailService!
+        // --- LAYER 3: Proof of Ownership --- EMAIL VALIDATION
         emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getFullName(), token);
 
         return savedUser;
     }
 
-    @Transactional
-    public void verifyEmail(String token) {
-        User user = userRepository.findByVerificationToken(token)
-                .orElseThrow(() -> new BankingException("Invalid or expired verification token."));
-
-        if (user.getVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new BankingException("Verification token has expired. Please register again or request a new link.");
-        }
-
-        user.setEmailVerified(true);
-        user.setVerificationToken(null);
-        user.setVerificationTokenExpiry(null);
-        userRepository.save(user);
-    }
 }

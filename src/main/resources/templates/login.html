@@ -81,15 +81,22 @@
     <form id="register-form" method="post" th:action="@{/register}" class="space-y-4 hidden">
         <div>
             <label for="fullName" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
-            <input id="fullName" name="fullName" type="text" maxlength="100"
-                   placeholder="e.g. Dennis Trillo" required
+            <input id="fullname" name="fullName" type="text"
+                   required
+                   pattern="[a-zA-Z\s\.\-]+"
+                   oninput="this.value = this.value.replace(/[^a-zA-Z\s\.\-]/g, '')"
+                   title="Full name should only contain letters, spaces, dots, or hyphens"
+                   placeholder="e.g. Dennis Trillo"
                    class="w-full px-4 py-3.5 bg-slate-100/80 border-2 border-transparent rounded-2xl text-slate-900 placeholder-slate-400 text-sm font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
         </div>
 
         <div>
             <label for="reg-mobile" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mobile Number</label>
-            <input id="reg-mobile" name="mobileNumber" type="text" maxlength="15"
-                   placeholder="09xxxxxxxxx" required
+            <input id="reg-mobile" name="mobileNumber" type="text" maxlength="11" inputmode="numeric"
+                   value="09"
+                   required
+                   oninput="this.value = '09' + this.value.replace(/^09?/, '').replace(/\D/g, '').slice(0, 9)"
+                   placeholder="09xxxxxxxxx"
                    class="w-full px-4 py-3.5 bg-slate-100/80 border-2 border-transparent rounded-2xl text-slate-900 placeholder-slate-400 text-sm font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
         </div>
 
@@ -102,8 +109,11 @@
 
         <div>
             <label for="reg-pin" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Create PIN</label>
-            <input id="reg-pin" name="pin" type="password" maxlength="20"
-                   placeholder="• • • •" required
+            <input id="reg-pin" name="pin" type="password" maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
+                   required
+                   onkeypress="return event.charCode >= 48 && event.charCode <= 57"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                   placeholder="• • • •"
                    class="w-full px-4 py-3.5 bg-slate-100/80 border-2 border-transparent rounded-2xl text-slate-900 placeholder-slate-400 text-sm font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
         </div>
 

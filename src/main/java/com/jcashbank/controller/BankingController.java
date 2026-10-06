@@ -62,7 +62,7 @@ public class BankingController {
         }
 
         try {
-            // 2. Attempt authentication (throws BankingException if mobile doesn't exist, PIN is wrong, etc.)
+            // 2. Attempt authentication
             User user = userService.authenticate(mobileNumber.trim(), pin.trim());
 
             // 3. Success! Clear the failure counter for this session
@@ -72,7 +72,13 @@ public class BankingController {
             return "redirect:/dashboard";
 
         } catch (BankingException ex) {
-            // 4. Increment failure counter regardless of why it failed (wrong number, wrong PIN, etc.)
+            // Check if the exception is specifically about email verification
+            if (ex.getMessage().contains("verify your email")) {
+                model.addAttribute("error", ex.getMessage());
+                return "login"; // Show email notice directly without ruining their attempt count
+            }
+
+            // Otherwise, handle regular credential/PIN failures
             failedAttempts++;
             session.setAttribute("failedLoginAttempts", failedAttempts);
 
@@ -225,13 +231,22 @@ public class BankingController {
             user.setEmail(email.trim());
             user.setFullName(fullName.trim());
 
-            // Calls your service (hashes pin, generates token, triggers background email)
+            // Calls your service
             userService.registerUser(user, pin.trim());
 
             return "redirect:/login?success=Registration successful! Please check your email to verify your account before logging in.";
-        } catch (BankingException | IllegalArgumentException ex) {
-            model.addAttribute("error", ex.getMessage());
-            return "register";
+        } catch (Exception ex) {
+            // This will catch ANY error (Database conflicts, BankingExceptions, etc.)
+            // and safely display it on your register page instead of crashing
+            String errorMessage = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+
+            // Fallback if message is null
+            if (errorMessage == null || errorMessage.isEmpty()) {
+                errorMessage = "An unexpected error occurred during registration.";
+            }
+
+            model.addAttribute("error", errorMessage);
+            return "login";
         }
     }
 
