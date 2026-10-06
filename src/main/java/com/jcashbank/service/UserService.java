@@ -4,6 +4,7 @@ import com.jcashbank.exception.BankingException;
 import com.jcashbank.model.User;
 import com.jcashbank.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,15 +20,17 @@ import java.util.UUID;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-    private final JavaMailSender mailSender;
+//    private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
 
-    public UserService(UserRepository userRepository, JavaMailSender mailSender, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
         this.userRepository = userRepository;
-        this.mailSender = mailSender;
+        this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
     }
+
 
     @Transactional(noRollbackFor = BankingException.class)
     public User authenticate(String mobileNumber, String pin) {
@@ -36,6 +39,25 @@ public class UserService {
 
         // Check if account is already locked
         if (user.isAccountLocked()) {
+
+            // Generate a secure unique token
+            String token = UUID.randomUUID().toString();
+            user.setResetToken(token);
+            user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 30 mins
+            userRepository.saveAndFlush(user);
+
+            String resetLink = "http://localhost:8080/reset-pin?token=" + token;
+            String subject = "JCasheesh! - Mobile Number Locked & PIN Reset";
+            String body = "Hi " + user.getFullName() + ",\n\n" +
+                    "Your JCasheesh! mobile number has been locked due to multiple failed login attempts.\n\n" +
+                    "You can reset your PIN and unlock your account by clicking the link below:\n" +
+                    resetLink + "\n\n" +
+                    "This link expires in 15 minutes.\n\n" +
+                    "If you did not attempt to log in, please secure your account immediately.";
+
+            emailService.sendEmailAsync(user.getEmail(), subject, body);
+
+
             throw new BankingException("Maximum 3 failed attempts reached. This mobile number is locked. Please check your email to reset your PIN.");
         }
 
@@ -54,29 +76,16 @@ public class UserService {
                 user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 30 mins
                 userRepository.saveAndFlush(user);
 
-                // Register a callback to send the email ONLY after the transaction commits successfully
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        try {
-                            String resetLink = "http://localhost:8080/reset-pin?token=" + token;
-                            SimpleMailMessage message = new SimpleMailMessage();
-                            message.setFrom("agreemo.greenhouse@gmail.com");
-                            message.setTo(user.getEmail());
-                            message.setSubject("JCasheesh! - Mobile Number Locked & PIN Reset");
-                            message.setText("Hi " + user.getFullName() + ",\n\n" +
-                                    "Your JCasheesh! mobile number has been locked due to 3 failed login attempts.\n\n" +
-                                    "You can reset your PIN and unlock your account by clicking the link below:\n" +
-                                    resetLink + "\n\n" +
-                                    "This link expires in 15 minutes.\n\n" +
-                                    "If you did not attempt to log in, please secure your account immediately.");
+                String resetLink = "http://localhost:8080/reset-pin?token=" + token;
+                String subject = "JCasheesh! - Mobile Number Locked & PIN Reset";
+                String body = "Hi " + user.getFullName() + ",\n\n" +
+                        "Your JCasheesh! mobile number has been locked due to 3 failed login attempts.\n\n" +
+                        "You can reset your PIN and unlock your account by clicking the link below:\n" +
+                        resetLink + "\n\n" +
+                        "This link expires in 15 minutes.\n\n" +
+                        "If you did not attempt to log in, please secure your account immediately.";
 
-                            mailSender.send(message);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
+                emailService.sendEmailAsync(user.getEmail(), subject, body);
 
                 throw new BankingException("Maximum 3 failed attempts reached. Account locked. A reset PIN link has been sent to your email.");
             }
@@ -122,15 +131,15 @@ public class UserService {
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 15 mins
         userRepository.save(user);
 
-        // Send Email
         String resetLink = "http://localhost:8080/reset-pin?token=" + token;
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("agreemo.greenhouse@gmail.com");
-        message.setTo(user.getEmail());
-        message.setSubject("JCasheesh! - PIN Reset Request");
-        message.setText("Hi " + user.getFullName() + ",\n\nYou requested to reset your JCasheesh! PIN. Click the link below to reset it:\n" + resetLink + "\n\nThis link expires in 15 minutes.\n\nIf you didn't request this, please ignore this email.");
+        String subject = "JCasheesh! - PIN Reset Request";
+        String body = "Hi " + user.getFullName() + ",\n\n" +
+                "You requested to reset your JCasheesh! PIN. Click the link below to reset it:\n" +
+                resetLink + "\n\n" +
+                "This link expires in 15 minutes.\n\n" +
+                "If you didn't request this, please ignore this email.";
 
-        mailSender.send(message);
+        emailService.sendEmailAsync(user.getEmail(), subject, body);
     }
 
     @Transactional
