@@ -1,24 +1,24 @@
 # JCasheesh Bank — Spring Boot Application
 
-A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the JCash Banking App requirements, enhanced with advanced security features, email verification, and asynchronous notifications.
+A Spring Boot + Spring Data JPA + Spring Web + Thymeleaf implementation of the JCash Banking App requirements, enhanced with advanced security features, email verification, asynchronous notifications, and unique transaction reference tracking.
 
 ## Requirements Implemented
 
 - *User Model & Persistence*: Manages user details (ID, mobile number, encrypted PIN, full name, balance, verification status, and transaction list) using Spring Data JPA and PostgreSQL.
 - *Secure Authentication*:
-    - BCrypt password encoder for secure PIN storage and validation.
-    - Mandatory email verification flow upon registration (users cannot log in until their email is confirmed).
-    - Maximum 3 failed login attempts per session.
+  - BCrypt password encoder for secure PIN storage and validation.
+  - Mandatory email verification flow upon registration (unverified users are blocked at authentication).
+  - Maximum 3 failed login attempts per session.
 - *Account Locking & PIN Reset*:
-    - Automatic account locking upon reaching 3 failed login attempts.
-    - Secure, time-sensitive token generation (15-minute expiry) for unlocking and resetting PINs.
+  - Automatic account locking upon reaching 3 failed login attempts.
+  - Secure, time-sensitive token generation (15-minute expiry) for unlocking and resetting PINs.
 - *Asynchronous Email Infrastructure*: Non-blocking background email dispatching via CompletableFuture and JavaMailSender for account verification and security alerts.
 - *Core Banking Operations*:
-    - Balance display after login.
-    - Cash-in with positive amount validation.
-    - Transfer by receiver mobile number with receiver validation, self-transfer prevention, and sender balance verification.
-    - Comprehensive sender and receiver transaction records and history logs.
-- *Session & UI Management*: Secure login/logout states, Thymeleaf-powered UI, and demo seed users.
+  - Balance display after login.
+  - Cash-in with positive amount validation.
+  - Transfer by receiver mobile number with receiver validation, self-transfer prevention, and sender balance verification.
+  - Comprehensive transaction records featuring **auto-generated unique reference numbers (referenceNumber)** via JPA @PrePersist hooks for full audit traceability.
+- *Session & UI Management*: Secure login/logout states, responsive Thymeleaf-powered UI with Tailwind CSS, and demo seed users.
 
 ## Technology
 
@@ -42,14 +42,6 @@ mvn spring-boot:run
 ```
 
 4. Open http://localhost:8080
-
-## Demo accounts
-
-| User | Mobile | PIN | Starting Balance |
-|---|---|---|---:|
-| Juan Dela Cruz | 09171234567 | 1234 | 5000.00 |
-| Maria Santos | 09181234567 | 5678 | 2500.00 |
-| Pedro Reyes | 09201234567 | 9999 | 1000.00 |
 
 ## Build a JAR
 
