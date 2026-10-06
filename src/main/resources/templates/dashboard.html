@@ -85,6 +85,7 @@
                 <div>
                     <strong class="block text-slate-900 text-sm font-extrabold" th:text="${tx.type}">CASH_IN</strong>
                     <small class="text-slate-500 text-xs font-medium" th:text="${tx.details}">Details</small>
+                    <span class="inline-block text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mb-1" th:text="|Ref#: ${tx.referenceNumber}|">REF-12345678</span>
                 </div>
                 <div class="text-right">
                     <strong class="block text-slate-900 text-sm font-extrabold" th:text="|₱${#numbers.formatDecimal(tx.amount, 1, 2)}|">₱0.00</strong>
