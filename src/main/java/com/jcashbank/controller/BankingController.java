@@ -50,17 +50,40 @@ public class BankingController {
             HttpSession session,
             Model model) {
 
+        // 1. Check session-level failed attempts before doing anything else
+        Integer failedAttempts = (Integer) session.getAttribute("failedLoginAttempts");
+        if (failedAttempts == null) {
+            failedAttempts = 0;
+        }
+
+        if (failedAttempts >= 3) {
+            model.addAttribute("error", "Maximum 3 failed login attempts reached for this session. Access is blocked.");
+            return "login";
+        }
+
         try {
-            // UserService.authenticate handles database lookups,
-            // BCrypt matching, failed attempt increments, and account locking.
+            // 2. Attempt authentication (throws BankingException if mobile doesn't exist, PIN is wrong, etc.)
             User user = userService.authenticate(mobileNumber.trim(), pin.trim());
+
+            // 3. Success! Clear the failure counter for this session
+            session.removeAttribute("failedLoginAttempts");
 
             session.setAttribute(SESSION_USER_ID, user.getId());
             return "redirect:/dashboard";
 
         } catch (BankingException ex) {
-            // Display whatever error UserService throws (e.g., "Attempts remaining: 2" or "Account locked")
-            model.addAttribute("error", ex.getMessage());
+            // 4. Increment failure counter regardless of why it failed (wrong number, wrong PIN, etc.)
+            failedAttempts++;
+            session.setAttribute("failedLoginAttempts", failedAttempts);
+
+            int remainingAttempts = 3 - failedAttempts;
+
+            if (remainingAttempts > 0) {
+                model.addAttribute("error", "Invalid credentials. Attempts remaining: " + remainingAttempts);
+            } else {
+                model.addAttribute("error", "Maximum 3 failed login attempts reached. Access is blocked.");
+            }
+
             return "login";
         }
     }

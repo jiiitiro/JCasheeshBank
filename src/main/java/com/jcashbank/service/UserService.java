@@ -31,11 +31,22 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    // Validation Helper
+    private void validateMobileAndPin(String mobileNumber, String pin) {
+        if (mobileNumber == null || !mobileNumber.matches("^09\\d{9}$")) {
+            throw new BankingException("Invalid mobile number. It must start with '09' and be exactly 11 digits.");
+        }
+        if (pin == null || !pin.matches("^\\d{4}$")) {
+            throw new BankingException("Invalid PIN. It must be exactly 4 digits.");
+        }
+    }
 
     @Transactional(noRollbackFor = BankingException.class)
     public User authenticate(String mobileNumber, String pin) {
         User user = userRepository.findByMobileNumber(mobileNumber)
                 .orElseThrow(() -> new BankingException("Mobile number or PIN is incorrect."));
+
+        validateMobileAndPin(user.getMobileNumber(), pin);
 
         if (!user.isEmailVerified()) throw new BankingException("Please verify your email address first before logging in." +
                 "Check your inbox for the verification link.");
@@ -169,7 +180,8 @@ public class UserService {
 
     @Transactional
     public User registerUser(User user, String rawPin) {
-        // Optional: check if mobile number or email already exists first
+
+        validateMobileAndPin(user.getMobileNumber(), rawPin);
 
         user.setPin(passwordEncoder.encode(rawPin));
         user.setEmailVerified(false); // Block login initially
