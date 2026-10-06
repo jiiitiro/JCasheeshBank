@@ -38,12 +38,23 @@ public class User {
     @Column(nullable = false)
     private boolean accountLocked;
 
+    @Column(nullable = false)
+    private boolean emailVerified;
+
+    private String verificationToken;
+
+    private LocalDateTime verificationTokenExpiry;
+
     private String resetToken;
     private LocalDateTime resetTokenExpiry;
 
+    public void setVerificationTokenExpiry(LocalDateTime verificationTokenExpiry) {
+        this.verificationTokenExpiry = verificationTokenExpiry;
+    }
+
     public User() {}
 
-    public User(String mobileNumber, String pin, String fullName, String email) {
+    public User(String mobileNumber, String pin, String fullName, String email, boolean emailVerified) {
         this.mobileNumber = mobileNumber;
         this.pin = pin;
         this.fullName = fullName;
@@ -51,9 +62,10 @@ public class User {
         this.email = email;
         this.accountLocked = false;
         this.failedLoginAttempts = 0;
+        this.emailVerified = emailVerified;
     }
 
-    public User(String mobileNumber, String pin, String fullName, BigDecimal balance, String email) {
+    public User(String mobileNumber, String pin, String fullName, BigDecimal balance, String email, boolean emailVerified) {
         this.mobileNumber = mobileNumber;
         this.pin = pin;
         this.fullName = fullName;
@@ -61,6 +73,7 @@ public class User {
         this.email = email;
         this.accountLocked = false;
         this.failedLoginAttempts = 0;
+        this.emailVerified = emailVerified;
     }
 
     public Long getId() { return id; }
@@ -75,7 +88,6 @@ public class User {
     public void setBalance(BigDecimal balance) { this.balance = balance; }
     public List<Transaction> getTransactions() { return transactions; }
     public void setTransactions(List<Transaction> transactions) { this.transactions = transactions; }
-
     public String getEmail() {return email;}
     public void setEmail(String email) {this.email = email;}
     public int getFailedLoginAttempts() {return failedLoginAttempts;}
@@ -85,21 +97,15 @@ public class User {
     public String getResetToken() {return resetToken;}
     public void setResetToken(String resetToken) {this.resetToken = resetToken;}
     public LocalDateTime getResetTokenExpiry() {return resetTokenExpiry;}
-
     public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
         this.resetTokenExpiry = resetTokenExpiry;
     }
-
-    public void addTransaction(Transaction transaction) {
-        transactions.add(transaction);
-        transaction.setUser(this);
-    }
-
-    public void removeTransaction(Transaction transaction) {
-        transactions.remove(transaction);
-        transaction.setUser(null);
-    }
-
-    public void setLockTime(Object o) {
-    }
+    public boolean isEmailVerified() {return emailVerified;}
+    public void setEmailVerified(boolean emailVerified) {this.emailVerified = emailVerified;}
+    public String getVerificationToken() {return verificationToken;}
+    public void setVerificationToken(String verificationToken) {this.verificationToken = verificationToken;}
+    public LocalDateTime getVerificationTokenExpiry() {return verificationTokenExpiry;}
+    public void addTransaction(Transaction transaction) {transactions.add(transaction);transaction.setUser(this);}
+    public void removeTransaction(Transaction transaction) {transactions.remove(transaction);transaction.setUser(null);}
+    public void setLockTime(Object o) {}
 }

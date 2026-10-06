@@ -37,6 +37,9 @@ public class UserService {
         User user = userRepository.findByMobileNumber(mobileNumber)
                 .orElseThrow(() -> new BankingException("Mobile number or PIN is incorrect."));
 
+        if (!user.isEmailVerified()) throw new BankingException("Please verify your email address first before logging in." +
+                "Check your inbox for the verification link.");
+
         // Check if account is already locked
         if (user.isAccountLocked()) {
 
@@ -164,4 +167,38 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional
+    public User registerUser(User user, String rawPin) {
+        // Optional: check if mobile number or email already exists first
+
+        user.setPin(passwordEncoder.encode(rawPin));
+        user.setEmailVerified(false); // Block login initially
+
+        // Generate verification token
+        String token = UUID.randomUUID().toString();
+        user.setVerificationToken(token);
+        user.setVerificationTokenExpiry(LocalDateTime.now().plusHours(24)); // 24-hour expiry
+
+        User savedUser = userRepository.save(user);
+
+        // Clean & simple call to your EmailService!
+        emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getFullName(), token);
+
+        return savedUser;
+    }
+
+    @Transactional
+    public void verifyEmail(String token) {
+        User user = userRepository.findByVerificationToken(token)
+                .orElseThrow(() -> new BankingException("Invalid or expired verification token."));
+
+        if (user.getVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new BankingException("Verification token has expired. Please register again or request a new link.");
+        }
+
+        user.setEmailVerified(true);
+        user.setVerificationToken(null);
+        user.setVerificationTokenExpiry(null);
+        userRepository.save(user);
+    }
 }

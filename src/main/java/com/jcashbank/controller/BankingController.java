@@ -26,10 +26,20 @@ public class BankingController {
     }
 
     @GetMapping({"/", "/login"})
-    public String loginPage(HttpSession session) {
+    public String loginPage(
+            HttpSession session,
+            Model model,
+            @RequestParam(required = false) String success) { // 👈 Capture the query param here
+
         if (session.getAttribute(SESSION_USER_ID) != null) {
             return "redirect:/dashboard";
         }
+
+        // If a success message was sent via redirect, pass it to the view
+        if (success != null && !success.isEmpty()) {
+            model.addAttribute("success", success);
+        }
+
         return "login";
     }
 
@@ -167,5 +177,50 @@ public class BankingController {
             model.addAttribute("token", token);
             return "reset-pin";
         }
+    }
+
+    // 1. Show Registration Page
+    @GetMapping("/register")
+    public String registerPage(HttpSession session) {
+        if (session.getAttribute(SESSION_USER_ID) != null) {
+            return "redirect:/dashboard";
+        }
+        return "register"; // Maps to your register.html template
+    }
+
+    // 2. Handle Registration Form Submission
+    @PostMapping("/register")
+    public String register(
+            @RequestParam String mobileNumber,
+            @RequestParam String email,
+            @RequestParam String fullName,
+            @RequestParam String pin,
+            Model model) {
+        try {
+            User user = new User();
+            user.setMobileNumber(mobileNumber.trim());
+            user.setEmail(email.trim());
+            user.setFullName(fullName.trim());
+
+            // Calls your service (hashes pin, generates token, triggers background email)
+            userService.registerUser(user, pin.trim());
+
+            return "redirect:/login?success=Registration successful! Please check your email to verify your account before logging in.";
+        } catch (BankingException | IllegalArgumentException ex) {
+            model.addAttribute("error", ex.getMessage());
+            return "register";
+        }
+    }
+
+    // 3. Handle Email Verification Link Clicked from Inbox
+    @GetMapping("/verify")
+    public String verifyEmail(@RequestParam String token, Model model) {
+        try {
+            userService.verifyEmail(token);
+            model.addAttribute("success", "Email verified successfully! You can now log in to your account.");
+        } catch (BankingException ex) {
+            model.addAttribute("error", ex.getMessage());
+        }
+        return "login"; // Returns them to login.html showing the success or error message
     }
 }
