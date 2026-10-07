@@ -5,8 +5,8 @@ services:
     image: postgres:15-alpine
     container_name: jcasheesh-db
     environment:
-      POSTGRES_DB: railway
-      POSTGRES_USER: postgres
+      POSTGRES_DB: jcasheesh_db
+      POSTGRES_USER: jcasheesh_db_user
       POSTGRES_PASSWORD: PLbYLyaInUImIzDiOMDDRcmyicwoezCO
     ports:
       - "5433:5432"
@@ -21,9 +21,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres.railway.internal:5432/railway
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=PLbYLyaInUImIzDiOMDDRcmyicwoezCO
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://jcasheesh_db.render.internal:5432/jcasheesh_db
+      - SPRING_DATASOURCE_USERNAME=jcasheesh_db_user
+      - SPRING_DATASOURCE_PASSWORD=LHhMNVga0x0WLhfabEeWzrldqR4yxcLv
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     depends_on:
       - postgres
