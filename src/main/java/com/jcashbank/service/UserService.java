@@ -116,7 +116,7 @@ public class UserService {
             user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
             userRepository.saveAndFlush(user);
 
-            String resetLink = "http://localhost:8080/reset-pin?token=" + token;
+            String resetLink = emailService.getBaseUrl() + "/reset-pin?token=" + token;
             String subject = "JCasheesh! - Mobile Number Locked & PIN Reset";
             String body = "Hi " + user.getFullName() + ",\n\n" +
                     "Your JCasheesh! mobile number has been locked due to multiple failed login attempts.\n\n" +
@@ -148,7 +148,7 @@ public class UserService {
                 user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
                 userRepository.saveAndFlush(user);
 
-                String resetLink = "http://localhost:8080/reset-pin?token=" + token;
+                String resetLink = emailService.getBaseUrl() + "/reset-pin?token=" + token;
                 String subject = "JCasheesh! - Mobile Number Locked & PIN Reset";
                 String body = "Hi " + user.getFullName() + ",\n\n" +
                         "Your JCasheesh! mobile number has been locked due to 3 failed login attempts.\n\n" +
