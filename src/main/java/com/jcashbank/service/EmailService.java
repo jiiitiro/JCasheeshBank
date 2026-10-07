@@ -1,7 +1,8 @@
 package com.jcashbank.service;
 
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.resend.Resend;
+import com.resend.services.emails.model.CreateEmailOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -10,22 +11,25 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    @Value("${RESEND_API_KEY}")
+    private String apiKey;
 
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    @Value("${APP_BASE_URL}")
+    private String baseUrl;
 
     @Async // 👈 Runs this entire method in a background thread pool
     public void sendEmailAsync(String toEmail, String subject, String body) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("agreemo.greenhouse@gmail.com");
-            message.setTo(toEmail);
-            message.setSubject(subject);
-            message.setText(body);
+            Resend resend = new Resend(apiKey);
 
-            mailSender.send(message);
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from("JCasheeshBank <onboarding@resend.dev>") // Required for free tier testing
+                    .to(toEmail)
+                    .subject(subject)
+                    .html("<p>" + body.replace("\n", "<br>") + "</p>")
+                    .build();
+
+            resend.emails().send(params);
             System.out.println("SUCCESS: Email sent asynchronously to " + toEmail);
         } catch (Exception e) {
             System.err.println("FAILED TO SEND EMAIL: " + e.getMessage());
@@ -35,18 +39,24 @@ public class EmailService {
     public void sendVerificationEmail(String toEmail, String fullName, String token) {
         CompletableFuture.runAsync(() -> {
             try {
-                String verifyLink = "http://localhost:8080/verify?token=" + token;
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom("agreemo.greenhouse@gmail.com");
-                message.setTo(toEmail);
-                message.setSubject("JCasheesh! - Verify Your Email Address");
-                message.setText("Hi " + fullName + ",\n\n" +
-                        "Thank you for registering with JCasheesh! Please click the link below to verify your email address and activate your account:\n" +
-                        verifyLink + "\n\n" +
-                        "This link expires in 24 hours.\n\n" +
-                        "If you did not create an account, please ignore this email.");
+                // Dynamically uses localhost for development and Render URL for production
+                String verifyLink = baseUrl + "/verify?token=" + token;
+                Resend resend = new Resend(apiKey);
 
-                mailSender.send(message);
+                String htmlContent = "Hi " + fullName + ",<br><br>" +
+                        "Thank you for registering with JCasheesh! Please click the link below to verify your email address and activate your account:<br>" +
+                        "<a href=\"" + verifyLink + "\">Verify Account</a><br><br>" +
+                        "This link expires in 24 hours.<br><br>" +
+                        "If you did not create an account, please ignore this email.";
+
+                CreateEmailOptions params = CreateEmailOptions.builder()
+                        .from("JCasheeshBank <onboarding@resend.dev>")
+                        .to(toEmail)
+                        .subject("JCasheesh! - Verify Your Email Address")
+                        .html(htmlContent)
+                        .build();
+
+                resend.emails().send(params);
                 System.out.println("SUCCESS: Verification email sent to " + toEmail);
             } catch (Exception e) {
                 System.err.println("FAILED TO SEND VERIFICATION EMAIL: " + e.getMessage());
