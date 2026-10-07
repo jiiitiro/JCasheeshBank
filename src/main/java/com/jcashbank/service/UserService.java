@@ -213,7 +213,7 @@ public class UserService {
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 15 mins
         userRepository.save(user);
 
-        String resetLink = "http://localhost:8080/reset-pin?token=" + token;
+        String resetLink = emailService.getBaseUrl() + "/reset-pin?token=" + token;
         String subject = "JCasheesh! - PIN Reset Request";
         String body = "Hi " + user.getFullName() + ",\n\n" +
                 "You requested to reset your JCasheesh! PIN. Click the link below to reset it:\n" +

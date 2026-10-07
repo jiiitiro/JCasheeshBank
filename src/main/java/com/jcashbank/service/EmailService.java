@@ -17,6 +17,10 @@ public class EmailService {
     @Value("${APP_BASE_URL}")
     private String baseUrl;
 
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
     @Async // 👈 Runs this entire method in a background thread pool
     public void sendEmailAsync(String toEmail, String subject, String body) {
         try {
