@@ -194,6 +194,16 @@ public class UserService {
     }
 
     public void processForgotPassword(String email) {
+
+        // --- LAYER 1: Syntax Check --- EMAIL VALIDATION
+        if (!isValidEmailSyntax(email)) {
+            throw new BankingException("Invalid email format syntax.");
+        }
+        // --- LAYER 2: MX Record Check --- EMAIL VALIDATION
+        if (!hasValidMxRecord(email)) {
+            throw new BankingException("The email domain does not exist or cannot receive mail.");
+        }
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BankingException("Email address not found in our records."));
 
@@ -221,6 +231,10 @@ public class UserService {
 
         if (user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new BankingException("Reset token has expired. Please request a new one.");
+        }
+
+        if (passwordEncoder.matches(newPin, user.getPin())) {
+            throw new BankingException("Your new PIN must be different from your old PIN.");
         }
 
         // Encrypt the new PIN using BCrypt PasswordEncoder
