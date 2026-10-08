@@ -103,10 +103,6 @@ public class UserService {
         User user = userRepository.findByMobileNumber(mobileNumber)
                 .orElseThrow(() -> new BankingException("Mobile number or PIN is incorrect."));
 
-        if (!user.isEmailVerified()) {
-            throw new BankingException("Please verify your email address first before logging in. Check your inbox for the verification link.");
-        }
-
         // Check if account is already locked
         if (user.isAccountLocked()) {
 
@@ -129,6 +125,10 @@ public class UserService {
 
 
             throw new BankingException("Maximum 3 failed attempts reached. This mobile number is locked. Please check your email to reset your PIN.");
+        }
+
+        if (!user.isEmailVerified()) {
+            throw new BankingException("Please verify your email address first before logging in. Check your inbox for the verification link.");
         }
 
         validateMobileAndPin(user.getMobileNumber(), pin);

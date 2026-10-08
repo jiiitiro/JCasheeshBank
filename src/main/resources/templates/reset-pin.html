@@ -48,7 +48,8 @@
                     </span>
                 <input type="password" id="newPin" name="newPin" required minlength="4" maxlength="4" pattern="[0-9]{4}" inputmode="numeric"
                        class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                       placeholder="Enter new PIN (4 digits)">
+                       placeholder="Enter new PIN (4 digits)"
+                       onkeypress="return event.charCode >= 48 && event.charCode <= 57">
             </div>
         </div>
 

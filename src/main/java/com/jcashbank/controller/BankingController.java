@@ -50,7 +50,7 @@ public class BankingController {
             HttpSession session,
             Model model) {
 
-        // 1. Check session-level failed attempts before doing anything else
+        // 1. Check session-level block
         Integer failedAttempts = (Integer) session.getAttribute("failedLoginAttempts");
         if (failedAttempts == null) {
             failedAttempts = 0;
@@ -65,25 +65,31 @@ public class BankingController {
             // 2. Attempt authentication
             User user = userService.authenticate(mobileNumber.trim(), pin.trim());
 
-            // 3. Success! Clear the failure counter for this session
+            // 3. Success! Reset failure count
             session.removeAttribute("failedLoginAttempts");
-
             session.setAttribute(SESSION_USER_ID, user.getId());
             return "redirect:/dashboard";
 
         } catch (BankingException ex) {
-            // Check if the exception is specifically about email verification
-            if (ex.getMessage().contains("verify your email")) {
-                model.addAttribute("error", ex.getMessage());
-                return "login"; // Show email notice directly without ruining their attempt count
+            String errorMsg = ex.getMessage();
+
+            // Check if account is ALREADY locked in DB by UserService
+            if (errorMsg != null && errorMsg.toLowerCase().contains("locked")) {
+                model.addAttribute("error", errorMsg);
+                return "login";
             }
 
-            // Otherwise, handle regular credential/PIN failures
+            // Check if error is related to unverified email
+            if (errorMsg != null && errorMsg.toLowerCase().contains("verify your email")) {
+                model.addAttribute("error", errorMsg);
+                return "login"; // Do not increment failed attempts counter
+            }
+
+            // Handle bad credentials / wrong PIN
             failedAttempts++;
             session.setAttribute("failedLoginAttempts", failedAttempts);
 
             int remainingAttempts = 3 - failedAttempts;
-
             if (remainingAttempts > 0) {
                 model.addAttribute("error", "Invalid credentials. Attempts remaining: " + remainingAttempts);
             } else {
@@ -93,6 +99,7 @@ public class BankingController {
             return "login";
         }
     }
+
 
     @GetMapping("/dashboard")
     public String dashboard(HttpSession session, Model model) {
