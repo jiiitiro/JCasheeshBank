@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JCash Bank - Reset PIN</title>
+    <title>JCasheesh - Reset PIN</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
         </div>
 
         <h2 class="text-xl font-bold text-slate-800">Set New PIN</h2>
-        <p class="text-slate-500 text-xs mt-1">Please enter your secure new PIN below.</p>
+        <p class="text-slate-500 text-xs mt-1">Please enter your secure 4-digit PIN below.</p>
     </div>
 
     <!-- Error Alert -->
@@ -36,25 +36,28 @@
     </div>
 
     <!-- Reset PIN Form -->
-    <form th:action="@{/reset-pin}" method="POST" class="space-y-5">
+    <form th:action="@{/reset-pin}" method="POST" onsubmit="return validatePinForm(event)" class="space-y-5">
         <!-- Hidden Token field passed from URL parameter -->
         <input type="hidden" name="token" th:value="${token}">
 
         <div>
             <label for="newPin" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">New PIN</label>
             <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    </span>
-                <input type="password" id="newPin" name="newPin" required minlength="4" maxlength="4" pattern="[0-9]{4}" inputmode="numeric"
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </span>
+                <input type="password" id="newPin" name="newPin" required maxlength="4" inputmode="numeric"
+                       oninput="handlePinInput(this)"
+                       oninvalid="handlePinInvalid(this)"
+                       onkeydown="if (!/[0-9]|Backspace|Delete|ArrowLeft|ArrowRight|Tab/.test(event.key)) event.preventDefault();"
+                       onpaste="handlePinPaste(event)"
                        class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                       placeholder="Enter new PIN (4 digits)"
-                       onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+                       placeholder="Enter new 4-digit PIN">
             </div>
         </div>
 
         <button type="submit"
-                class="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold rounded-2xl shadow-lg shadow-indigo-500/25 transition-all text-sm tracking-wide">
+                class="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-xl shadow-indigo-600/25 transition-all text-sm tracking-wide active:scale-[0.98]">
             Update PIN 🚀
         </button>
     </form>
@@ -67,6 +70,52 @@
         </a>
     </div>
 </div>
+
+<script>
+    function handlePinInput(input) {
+        // Strip out non-numeric characters and cap length at 4
+        input.value = input.value.replace(/\D/g, '').slice(0, 4);
+        input.setCustomValidity(''); // Reset custom validation state while typing
+    }
+
+    function handlePinPaste(event) {
+        event.preventDefault();
+        const pastedData = (event.clipboardData || window.clipboardData).getData('text');
+        const numericData = pastedData.replace(/\D/g, '').slice(0, 4);
+        event.target.value = numericData;
+        event.target.setCustomValidity('');
+    }
+
+    function handlePinInvalid(input) {
+        if (!input.value) {
+            input.setCustomValidity('Please fill out this field.');
+        } else if (input.value.length < 4) {
+            input.setCustomValidity('PIN must be exactly 4 digits.');
+        }
+    }
+
+    function validatePinForm(event) {
+        const pinInput = document.getElementById('newPin');
+        const val = pinInput.value.trim();
+
+        if (!val) {
+            pinInput.setCustomValidity('Please fill out this field.');
+            pinInput.reportValidity();
+            event.preventDefault();
+            return false;
+        }
+
+        if (val.length < 4) {
+            pinInput.setCustomValidity('PIN must be exactly 4 digits.');
+            pinInput.reportValidity();
+            event.preventDefault();
+            return false;
+        }
+
+        pinInput.setCustomValidity('');
+        return true;
+    }
+</script>
 
 </body>
 </html>

@@ -39,7 +39,7 @@ public class TransactionService {
     }
 
     @Transactional
-    public void transfer(Long senderId, String receiverMobileNumber, BigDecimal amount) {
+    public Transaction transfer(Long senderId, String receiverMobileNumber, BigDecimal amount) {
         validatePositiveAmount(amount);
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new BankingException("Sender account was not found."));
@@ -56,20 +56,38 @@ public class TransactionService {
         sender.setBalance(sender.getBalance().subtract(amount));
         receiver.setBalance(receiver.getBalance().add(amount));
 
-        sender.addTransaction(new Transaction(
+        // Base GCash-style digits
+        String baseRefNo = String.format("%04d %03d %06d",
+                (int)(Math.random() * 9000) + 1000,
+                (int)(Math.random() * 900) + 100,
+                (int)(Math.random() * 900000) + 100000);
+
+        // 1. Sender transaction record
+        Transaction sentTx = new Transaction(
                 TransactionType.TRANSFER_SENT,
                 amount,
                 "Transfer sent to " + receiver.getMobileNumber()
-        ));
-        receiver.addTransaction(new Transaction(
+        );
+        sentTx.setReferenceNumber(baseRefNo); // Unique for sender
+
+        // 2. Receiver transaction record (distinct reference_number)
+        Transaction receivedTx = new Transaction(
                 TransactionType.TRANSFER_RECEIVED,
                 amount,
                 "Transfer received from " + sender.getMobileNumber()
-        ));
+        );
+        receivedTx.setReferenceNumber(baseRefNo + "-R"); // Appended suffix keeps unique constraint happy
+
+        sender.addTransaction(sentTx);
+        receiver.addTransaction(receivedTx);
 
         userRepository.save(sender);
         userRepository.save(receiver);
+
+        return sentTx;
     }
+
+
 
     @Transactional(readOnly = true)
     public List<Transaction> getTransactions(Long userId) {

@@ -1,6 +1,7 @@
 package com.jcashbank.controller;
 
 import com.jcashbank.exception.BankingException;
+import com.jcashbank.model.Transaction;
 import com.jcashbank.model.User;
 import com.jcashbank.service.TransactionService;
 import com.jcashbank.service.UserService;
@@ -29,13 +30,13 @@ public class BankingController {
     public String loginPage(
             HttpSession session,
             Model model,
-            @RequestParam(required = false) String success) { // 👈 Capture the query param here
+            @RequestParam(required = false) String success) {
 
+        // If already logged in, go straight to dashboard
         if (session.getAttribute(SESSION_USER_ID) != null) {
             return "redirect:/dashboard";
         }
 
-        // If a success message was sent via redirect, pass it to the view
         if (success != null && !success.isEmpty()) {
             model.addAttribute("success", success);
         }
@@ -50,52 +51,18 @@ public class BankingController {
             HttpSession session,
             Model model) {
 
-        // 1. Check session-level block
-        Integer failedAttempts = (Integer) session.getAttribute("failedLoginAttempts");
-        if (failedAttempts == null) {
-            failedAttempts = 0;
-        }
-
-        if (failedAttempts >= 3) {
-            model.addAttribute("error", "Maximum 3 failed login attempts reached for this session. Access is blocked.");
-            return "login";
-        }
-
         try {
-            // 2. Attempt authentication
+            // Authenticate directly against DB via UserService
             User user = userService.authenticate(mobileNumber.trim(), pin.trim());
 
-            // 3. Success! Reset failure count
-            session.removeAttribute("failedLoginAttempts");
+            // Store active session user ID
             session.setAttribute(SESSION_USER_ID, user.getId());
+
             return "redirect:/dashboard";
 
         } catch (BankingException ex) {
-            String errorMsg = ex.getMessage();
-
-            // Check if account is ALREADY locked in DB by UserService
-            if (errorMsg != null && errorMsg.toLowerCase().contains("locked")) {
-                model.addAttribute("error", errorMsg);
-                return "login";
-            }
-
-            // Check if error is related to unverified email
-            if (errorMsg != null && errorMsg.toLowerCase().contains("verify your email")) {
-                model.addAttribute("error", errorMsg);
-                return "login"; // Do not increment failed attempts counter
-            }
-
-            // Handle bad credentials / wrong PIN
-            failedAttempts++;
-            session.setAttribute("failedLoginAttempts", failedAttempts);
-
-            int remainingAttempts = 3 - failedAttempts;
-            if (remainingAttempts > 0) {
-                model.addAttribute("error", "Invalid credentials. Attempts remaining: " + remainingAttempts);
-            } else {
-                model.addAttribute("error", "Maximum 3 failed login attempts reached. Access is blocked.");
-            }
-
+            // Display exact dynamic message from UserService (e.g. remaining attempts or actual email lockout)
+            model.addAttribute("error", ex.getMessage());
             return "login";
         }
     }
@@ -204,9 +171,17 @@ public class BankingController {
     }
 
     @PostMapping("/reset-pin")
-    public String processResetPin(@RequestParam String token, @RequestParam String newPin, Model model) {
+    public String processResetPin(
+            @RequestParam String token,
+            @RequestParam String newPin,
+            HttpSession session, // 👈 Inject HttpSession
+            Model model) {
         try {
             userService.resetPin(token, newPin);
+
+            // Clear session failure counter so user gets fresh 3 attempts
+            session.removeAttribute("failedLoginAttempts");
+
             return "redirect:/login?success=PIN successfully reset. You can now log in.";
         } catch (BankingException ex) {
             model.addAttribute("error", ex.getMessage());
@@ -215,16 +190,15 @@ public class BankingController {
         }
     }
 
-    // 1. Show Registration Page
+
     @GetMapping("/register")
     public String registerPage(HttpSession session) {
         if (session.getAttribute(SESSION_USER_ID) != null) {
             return "redirect:/dashboard";
         }
-        return "register"; // Maps to your register.html template
+        return "register";
     }
 
-    // 2. Handle Registration Form Submission
     @PostMapping("/register")
     public String register(
             @RequestParam String mobileNumber,
@@ -238,16 +212,12 @@ public class BankingController {
             user.setEmail(email.trim());
             user.setFullName(fullName.trim());
 
-            // Calls your service
             userService.registerUser(user, pin.trim());
 
             return "redirect:/login?success=Registration successful! Please check your email to verify your account before logging in.";
         } catch (Exception ex) {
-            // This will catch ANY error (Database conflicts, BankingExceptions, etc.)
-            // and safely display it on your register page instead of crashing
             String errorMessage = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
 
-            // Fallback if message is null
             if (errorMessage == null || errorMessage.isEmpty()) {
                 errorMessage = "An unexpected error occurred during registration.";
             }
@@ -257,7 +227,6 @@ public class BankingController {
         }
     }
 
-    // 3. Handle Email Verification Link Clicked from Inbox
     @GetMapping("/verify")
     public String verifyEmail(@RequestParam String token, Model model) {
         try {
@@ -266,6 +235,78 @@ public class BankingController {
         } catch (BankingException ex) {
             model.addAttribute("error", ex.getMessage());
         }
-        return "login"; // Returns them to login.html showing the success or error message
+        return "login";
+    }
+
+    // --- EXPRESS SEND FLOW ---
+
+    @PostMapping("/transfer/confirm")
+    public String showConfirmation(
+            @RequestParam String recipientMobile,
+            @RequestParam BigDecimal amount,
+            HttpSession session,
+            Model model) {
+
+        User sender = getLoggedInUser(session);
+
+        try {
+            // Check if user is attempting to send to themselves
+            if (sender.getMobileNumber().equals(recipientMobile.trim())) {
+                throw new BankingException("You cannot transfer money to your own account.");
+            }
+
+            // Check balance before confirmation
+            if (sender.getBalance().compareTo(amount) < 0) {
+                throw new BankingException("Insufficient balance.");
+            }
+
+            // Validate recipient exists & fetch masked name
+            String maskedName = userService.getMaskedNameByMobile(recipientMobile.trim());
+
+            model.addAttribute("user", sender);
+            model.addAttribute("recipientName", maskedName);
+            model.addAttribute("recipientMobile", recipientMobile.trim());
+            model.addAttribute("amount", amount);
+
+            return "confirm-send";
+
+        } catch (Exception ex) {
+            // Route errors back to transfer.html instead of uncaught exception view
+            model.addAttribute("user", sender);
+            model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Invalid transfer details.");
+            return "transfer";
+        }
+    }
+
+    @PostMapping("/transfer/execute")
+    public String executeTransfer(
+            @RequestParam String recipientMobile,
+            @RequestParam BigDecimal amount,
+            HttpSession session,
+            Model model) {
+
+        User sender = getLoggedInUser(session);
+
+        try {
+            Transaction transaction = transactionService.transfer(
+                    sender.getId(),
+                    recipientMobile.trim(),
+                    amount
+            );
+
+            model.addAttribute("transaction", transaction);
+            model.addAttribute("recipientName", userService.getMaskedNameByMobile(recipientMobile.trim()));
+            model.addAttribute("recipientMobile", recipientMobile.trim());
+
+            return "receipt";
+
+        } catch (Exception ex) {
+            model.addAttribute("user", sender);
+            model.addAttribute("recipientName", userService.getMaskedNameByMobile(recipientMobile.trim()));
+            model.addAttribute("recipientMobile", recipientMobile.trim());
+            model.addAttribute("amount", amount);
+            model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Transfer failed.");
+            return "confirm-send";
+        }
     }
 }

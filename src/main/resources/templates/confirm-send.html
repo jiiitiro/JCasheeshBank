@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JCasheesh - Confirm Express Send</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-tr from-purple-900 via-indigo-950 to-blue-900 min-h-screen text-slate-800 pb-12">
+
+<!-- Top Navigation Bar -->
+<header class="w-full bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 px-4 sm:px-8 py-3 flex items-center justify-between shadow-sm">
+    <a th:href="@{/dashboard}" class="flex items-center">
+        <img th:src="@{/images/logo.svg}" alt="JCasheesh Logo" class="w-48 h-auto drop-shadow-sm">
+    </a>
+    <a th:href="@{/transfer}" class="text-xs font-extrabold text-indigo-600 hover:text-indigo-800 transition-colors bg-white/60 px-4 py-2 rounded-xl border border-white/40">
+        ← Back
+    </a>
+</header>
+
+<!-- Main Container -->
+<main class="max-w-md mx-auto px-4 mt-8">
+    <form th:action="@{/transfer/execute}" method="post">
+
+        <!-- Hidden Form Inputs -->
+        <input type="hidden" name="recipientMobile" th:value="${recipientMobile}" />
+        <input type="hidden" name="amount" th:value="${amount}" />
+
+        <!-- Main Confirmation Card -->
+        <div class="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] p-8 sm:p-10 border border-white/40 shadow-2xl shadow-slate-900/10 text-center relative pt-12">
+
+            <!-- Recipient Initial Avatar Circle -->
+            <div class="absolute -top-7 left-1/2 -translate-x-1/2 w-16 h-16 bg-gradient-to-tr from-indigo-600 to-purple-600 text-white rounded-full flex items-center justify-center font-extrabold text-lg shadow-lg border-4 border-white">
+                <span th:text="${recipientName != null and !#strings.isEmpty(recipientName) ? #strings.substring(recipientName, 0, 2) : 'JC'}">JC</span>
+            </div>
+
+            <!-- Recipient Information -->
+            <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight uppercase" th:text="${recipientName}">MA••••N F.</h2>
+            <div class="inline-block mt-2 px-4 py-1.5 bg-slate-100 rounded-full text-slate-600 text-xs font-bold tracking-wide" th:text="${recipientMobile}">
+                +63 970 795 6412
+            </div>
+
+            <!-- Amount Breakdown Box -->
+            <div class="mt-8 pt-6 border-t border-slate-200/60 space-y-3">
+                <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span>You're about to send</span>
+                    <span class="text-slate-900 font-extrabold text-sm" th:text="${#numbers.formatDecimal(amount, 1, 2)}">200.00</span>
+                </div>
+                <div class="flex justify-between items-center pt-2">
+                    <span class="text-sm font-extrabold text-slate-900">Total Amount to Pay</span>
+                    <span class="text-2xl font-extrabold text-indigo-600">
+                        ₱<span th:text="${#numbers.formatDecimal(amount, 1, 2)}">200.00</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Optional Protection Banner -->
+        <div class="mt-4 bg-amber-500/10 backdrop-blur-md border border-amber-300/30 rounded-2xl p-4 flex items-start gap-3 text-amber-100">
+            <div class="w-8 h-8 bg-amber-400/20 rounded-xl flex items-center justify-center text-amber-300 font-bold shrink-0 mt-0.5">
+                🛡️
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-amber-200 uppercase tracking-wide">Want extra scam protection?</h4>
+                <p class="text-xs text-amber-100/80 mt-0.5 leading-relaxed">
+                    Scammers never take a day off. Get protected for as low as ₱20 with up to ₱15,000 coverage.
+                </p>
+            </div>
+        </div>
+
+        <!-- Checkbox Confirmation Section -->
+        <div class="mt-6 text-center text-white/90">
+            <p class="text-xs font-medium text-slate-300 mb-3">
+                Double-check to make sure your bestie's number is <strong class="text-white font-extrabold">100% correct</strong>.
+            </p>
+            <label for="confirmCheck" class="inline-flex items-center gap-3 cursor-pointer bg-white/10 hover:bg-white/15 px-5 py-3 rounded-2xl border border-white/20 transition-all">
+                <input type="checkbox" id="confirmCheck" name="confirmCheck" onchange="toggleSendButton()"
+                       class="w-5 h-5 rounded-md text-indigo-600 focus:ring-indigo-500 border-white/30 bg-white/20 cursor-pointer">
+                <span class="text-xs font-bold text-white tracking-wide">Yes, I confirm the number is correct.</span>
+            </label>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="mt-6">
+            <button type="submit" id="sendBtn" disabled
+                    class="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 text-white font-extrabold py-4 px-4 rounded-2xl shadow-xl shadow-indigo-600/30 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all">
+                Send ₱ <span th:text="${#numbers.formatDecimal(amount, 1, 2)}">200.00</span> 🚀
+            </button>
+        </div>
+    </form>
+
+    <!-- Footer Tagline -->
+    <div class="mt-8 text-center text-xs font-semibold text-slate-400 tracking-wide">
+        SECURE &bull; VIBE CHECKED
+    </div>
+</main>
+
+<script>
+    function toggleSendButton() {
+        const checkBox = document.getElementById('confirmCheck');
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.disabled = !checkBox.checked;
+    }
+</script>
+
+</body>
+</html>

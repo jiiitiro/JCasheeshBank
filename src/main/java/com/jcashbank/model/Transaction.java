@@ -47,12 +47,23 @@ public class Transaction {
     @PrePersist
     public void prePersist() {
         if (this.referenceNumber == null || this.referenceNumber.isEmpty()) {
-            this.referenceNumber = UUID.randomUUID().toString().substring(0, 13);
+            this.referenceNumber = generateFormattedRefNo();
+        }
+        if (this.transactionDate == null) {
+            this.transactionDate = LocalDateTime.now();
         }
         if (this.dateTime == null) {
             this.dateTime = LocalDateTime.now();
         }
     }
+
+    private String generateFormattedRefNo() {
+        return String.format("%04d %03d %06d",
+                (int)(Math.random() * 9000) + 1000,
+                (int)(Math.random() * 900) + 100,
+                (int)(Math.random() * 900000) + 100000);
+    }
+
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

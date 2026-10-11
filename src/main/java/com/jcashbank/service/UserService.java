@@ -16,7 +16,7 @@ import java.util.UUID;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-//    private final JavaMailSender mailSender;
+    //    private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -100,66 +100,47 @@ public class UserService {
 
     @Transactional(noRollbackFor = BankingException.class)
     public User authenticate(String mobileNumber, String pin) {
-        User user = userRepository.findByMobileNumber(mobileNumber)
+
+        // 1. Check if user exists FIRST. If not, throw generic message.
+        User user = userRepository.findByMobileNumber(mobileNumber.trim())
                 .orElseThrow(() -> new BankingException("Mobile number or PIN is incorrect."));
 
-        // Check if account is already locked
+        // 2. Check if this specific user account is already locked in DB
         if (user.isAccountLocked()) {
-
-            // Generate a secure unique token
-            String token = UUID.randomUUID().toString();
-            user.setResetToken(token);
-            user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
-            userRepository.saveAndFlush(user);
-
-            String resetLink = emailService.getBaseUrl() + "/reset-pin?token=" + token;
-            String subject = "JCasheesh! - Mobile Number Locked & PIN Reset";
-            String body = "Hi " + user.getFullName() + ",\n\n" +
-                    "Your JCasheesh! mobile number has been locked due to multiple failed login attempts.\n\n" +
-                    "You can reset your PIN and unlock your account by clicking the link below:\n" +
-                    resetLink + "\n\n" +
-                    "This link expires in 15 minutes.\n\n" +
-                    "If you did not attempt to log in, please secure your account immediately.";
-
-            emailService.sendEmailAsync(user.getEmail(), subject, body);
-
-
-            throw new BankingException("Maximum 3 failed attempts reached. This mobile number is locked. Please check your email to reset your PIN.");
+            throw new BankingException("Maximum 3 failed login attempts reached. Account locked. Please check your email to reset your PIN.");
         }
 
+        // 3. Check email verification status
         if (!user.isEmailVerified()) {
             throw new BankingException("Please verify your email address first before logging in. Check your inbox for the verification link.");
         }
 
-        validateMobileAndPin(user.getMobileNumber(), pin);
-
-        // Verify PIN using passwordEncoder
-        if (!passwordEncoder.matches(pin, user.getPin())) {
+        // 4. Validate PIN match
+        if (!passwordEncoder.matches(pin.trim(), user.getPin())) {
             int attempts = user.getFailedLoginAttempts() + 1;
             user.setFailedLoginAttempts(attempts);
 
+            // On 3rd failure for an EXISTING account, lock and send reset email
             if (attempts >= 3) {
                 user.setAccountLocked(true);
                 user.setLockTime(LocalDateTime.now());
 
-                // Generate a secure unique token
                 String token = UUID.randomUUID().toString();
                 user.setResetToken(token);
                 user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
                 userRepository.saveAndFlush(user);
 
-                String resetLink = emailService.getBaseUrl() + "/reset-pin?token=" + token;
-                String subject = "JCasheesh! - Mobile Number Locked & PIN Reset";
+                String resetLink = "http://localhost:8081/reset-pin?token=" + token;
+                String subject = "JCasheesh! - Account Locked & PIN Reset";
                 String body = "Hi " + user.getFullName() + ",\n\n" +
-                        "Your JCasheesh! mobile number has been locked due to 3 failed login attempts.\n\n" +
+                        "Your JCasheesh! account has been locked due to 3 failed login attempts.\n\n" +
                         "You can reset your PIN and unlock your account by clicking the link below:\n" +
                         resetLink + "\n\n" +
-                        "This link expires in 15 minutes.\n\n" +
-                        "If you did not attempt to log in, please secure your account immediately.";
+                        "This link expires in 15 minutes.";
 
                 emailService.sendEmailAsync(user.getEmail(), subject, body);
 
-                throw new BankingException("Maximum 3 failed attempts reached. Account locked. A reset PIN link has been sent to your email.");
+                throw new BankingException("Maximum 3 failed login attempts reached. Account locked. Please check your email to reset your PIN.");
             }
 
             userRepository.saveAndFlush(user);
@@ -167,8 +148,8 @@ public class UserService {
             throw new BankingException("Mobile number or PIN is incorrect. Attempts remaining: " + remaining);
         }
 
-        // Successful login: Reset failed attempts counter and locks
-        if (user.getFailedLoginAttempts() > 0 || user.isAccountLocked()) {
+        // 5. Successful login: Reset DB attempt counter
+        if (user.getFailedLoginAttempts() > 0) {
             user.setFailedLoginAttempts(0);
             user.setAccountLocked(false);
             user.setLockTime(null);
@@ -179,6 +160,27 @@ public class UserService {
 
         return user;
     }
+
+
+    private void sendLockoutEmail(User user) {
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        userRepository.saveAndFlush(user);
+
+        // Matches server port (e.g. 8081)
+        String resetLink = "http://localhost:8081/reset-pin?token=" + token;
+        String subject = "JCasheesh! - Account Locked & PIN Reset";
+        String body = "Hi " + user.getFullName() + ",\n\n" +
+                "Your JCasheesh! account has been locked due to 3 failed login attempts.\n\n" +
+                "You can reset your PIN and unlock your account by clicking the link below:\n" +
+                resetLink + "\n\n" +
+                "This link expires in 15 minutes.\n\n" +
+                "If you did not attempt to log in, please secure your account immediately.";
+
+        emailService.sendEmailAsync(user.getEmail(), subject, body);
+    }
+
 
 
     @Transactional(readOnly = true)
@@ -213,7 +215,7 @@ public class UserService {
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15)); // Valid for 15 mins
         userRepository.save(user);
 
-        String resetLink = emailService.getBaseUrl() + "/reset-pin?token=" + token;
+        String resetLink = "http://localhost:8080/reset-pin?token=" + token;
         String subject = "JCasheesh! - PIN Reset Request";
         String body = "Hi " + user.getFullName() + ",\n\n" +
                 "You requested to reset your JCasheesh! PIN. Click the link below to reset it:\n" +
@@ -280,6 +282,42 @@ public class UserService {
         emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getFullName(), token);
 
         return savedUser;
+    }
+
+    public String getMaskedNameByMobile(String mobileNumber) {
+        User user = userRepository.findByMobileNumber(mobileNumber.trim())
+                .orElseThrow(() -> new BankingException("Recipient mobile number not found."));
+
+        return maskFullName(user.getFullName());
+    }
+
+    /**
+     * Helper method to mask full names for Express Send privacy.
+     * Example: "Marian Flores" -> "MA••••N F."
+     */
+    private String maskFullName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            return "JCasheesh User";
+        }
+
+        String[] parts = fullName.trim().split("\\s+");
+        String firstName = parts[0];
+
+        // Mask First Name (keep first 2 chars, add dots, keep last char if long enough)
+        String maskedFirst;
+        if (firstName.length() <= 2) {
+            maskedFirst = firstName.toUpperCase() + "••";
+        } else {
+            maskedFirst = firstName.substring(0, 2).toUpperCase() + "••••" + firstName.substring(firstName.length() - 1).toUpperCase();
+        }
+
+        // Append Last Name Initial if available
+        if (parts.length > 1) {
+            String lastName = parts[parts.length - 1];
+            return maskedFirst + " " + lastName.substring(0, 1).toUpperCase() + ".";
+        }
+
+        return maskedFirst;
     }
 
 }
