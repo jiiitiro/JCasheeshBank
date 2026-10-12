@@ -7,18 +7,13 @@ services:
     environment:
       TZ: Asia/Manila
       PGTZ: Asia/Manila
-      POSTGRES_DB: ${POSTGRES_DB:-jcasheesh_db}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-jcasheesh_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
     networks:
       - jcasheesh-net
 
@@ -28,15 +23,15 @@ services:
     ports:
       - "8081:8081"
     environment:
-      TZ: Asia/Manila
-      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Manila"
-      PORT: 8081
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-jcasheesh_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8081}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      - TZ: Asia/Manila
+      - JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Manila"
+      - SPRING_DATASOURCE_URL=${DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8081}
+      - MAIL_USERNAME: ${MAIL_USERNAME}
+      - MAIL_PASSWORD: ${MAIL_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
