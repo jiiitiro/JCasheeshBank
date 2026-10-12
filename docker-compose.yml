@@ -5,8 +5,6 @@ services:
     image: postgres:15-alpine
     container_name: jcasheesh-db
     environment:
-      TZ: Asia/Manila
-      PGTZ: Asia/Manila
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -25,16 +23,13 @@ services:
     environment:
       - TZ: Asia/Manila
       - JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Manila"
+      - APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8081}
       - SPRING_DATASOURCE_URL=${DATABASE_URL}
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8081}
-      - MAIL_USERNAME: ${MAIL_USERNAME}
-      - MAIL_PASSWORD: ${MAIL_PASSWORD}
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     networks:
       - jcasheesh-net
 
