@@ -23,7 +23,7 @@ public class TransactionService {
     }
 
     @Transactional
-    public void cashIn(Long userId, BigDecimal amount) {
+    public Transaction cashIn(Long userId, BigDecimal amount) {
         validatePositiveAmount(amount);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BankingException("User account was not found."));
@@ -34,9 +34,15 @@ public class TransactionService {
                 amount,
                 "Cash-in to wallet"
         );
+
+        transaction.prePersist();
+
         user.addTransaction(transaction);
         userRepository.save(user);
+
+        return transaction; // 👈 Return the newly created transaction
     }
+
 
     @Transactional
     public Transaction transfer(Long senderId, String receiverMobileNumber, BigDecimal amount) {

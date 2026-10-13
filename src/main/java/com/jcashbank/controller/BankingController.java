@@ -16,7 +16,6 @@ import java.math.BigDecimal;
 public class BankingController {
     private static final String SESSION_USER_ID = "loggedInUserId";
     private static final String SESSION_LOGIN_ATTEMPTS = "loginAttempts";
-    private static final int MAX_LOGIN_ATTEMPTS = 3;
 
     private final UserService userService;
     private final TransactionService transactionService;
@@ -82,19 +81,53 @@ public class BankingController {
         return "cash-in";
     }
 
-    @PostMapping("/cash-in")
-    public String cashIn(
+    @PostMapping("/cash-in/confirm")
+    public String confirmCashIn(
             @RequestParam BigDecimal amount,
             HttpSession session,
             Model model) {
+
         User user = getLoggedInUser(session);
+
         try {
-            transactionService.cashIn(user.getId(), amount);
-            return "redirect:/dashboard?success=Cash-in completed successfully.";
-        } catch (BankingException | IllegalArgumentException ex) {
-            model.addAttribute("user", userService.findById(user.getId()));
-            model.addAttribute("error", ex.getMessage());
+            if (amount == null || amount.compareTo(new BigDecimal("5.00")) < 0 || amount.compareTo(new BigDecimal("10000.00")) > 0) {
+                throw new BankingException("Cash in amount must be between ₱5.00 and ₱10,000.00.");
+            }
+
+            model.addAttribute("user", user);
+            model.addAttribute("amount", amount);
+
+            return "confirm-cash-in";
+
+        } catch (Exception ex) {
+            model.addAttribute("user", user);
+            model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Invalid cash in amount.");
             return "cash-in";
+        }
+    }
+
+    @PostMapping("/cash-in/execute")
+    public String executeCashIn(
+            @RequestParam BigDecimal amount,
+            HttpSession session,
+            Model model) {
+
+        User user = getLoggedInUser(session);
+
+        try {
+            Transaction transaction = transactionService.cashIn(user.getId(), amount);
+
+            model.addAttribute("user", userService.findById(user.getId()));
+            model.addAttribute("transaction", transaction);
+            model.addAttribute("amount", amount);
+
+            return "cash-in-receipt";
+
+        } catch (Exception ex) {
+            model.addAttribute("user", user);
+            model.addAttribute("amount", amount);
+            model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Cash in failed.");
+            return "confirm-cash-in";
         }
     }
 
