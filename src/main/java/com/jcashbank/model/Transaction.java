@@ -1,12 +1,16 @@
 package com.jcashbank.model;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PUBLIC)
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,7 +38,14 @@ public class Transaction {
 
     private LocalDateTime dateTime;
 
-    public Transaction() {
+    public Transaction(TransactionType type, BigDecimal amount, String details, LocalDateTime transactionDate, User user, String referenceNumber, LocalDateTime dateTime) {
+        this.type = type;
+        this.amount = amount;
+        this.details = details;
+        this.transactionDate = transactionDate;
+        this.user = user;
+        this.referenceNumber = referenceNumber;
+        this.dateTime = dateTime;
     }
 
     public Transaction(TransactionType type, BigDecimal amount, String details) {
@@ -64,21 +75,4 @@ public class Transaction {
                 (int)(Math.random() * 900000) + 100000);
     }
 
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public TransactionType getType() { return type; }
-    public void setType(TransactionType type) { this.type = type; }
-    public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
-    public String getDetails() { return details; }
-    public void setDetails(String details) { this.details = details; }
-    public LocalDateTime getTransactionDate() { return transactionDate; }
-    public void setTransactionDate(LocalDateTime transactionDate) { this.transactionDate = transactionDate; }
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-    public String getReferenceNumber() {return referenceNumber;}
-    public void setReferenceNumber(String referenceNumber) {this.referenceNumber = referenceNumber;}
-    public LocalDateTime getDateTime() {return dateTime;}
-    public void setDateTime(LocalDateTime dateTime) {this.dateTime = dateTime;}
 }

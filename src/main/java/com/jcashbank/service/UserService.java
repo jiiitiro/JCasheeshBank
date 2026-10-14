@@ -16,10 +16,8 @@ import java.util.UUID;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-    //    private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
-
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
         this.userRepository = userRepository;
