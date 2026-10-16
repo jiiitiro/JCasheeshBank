@@ -11,7 +11,7 @@ import java.util.List;
 @Table(name = "users")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PUBLIC)
+@NoArgsConstructor
 public class User {
 
     @Id
@@ -28,7 +28,7 @@ public class User {
     private String fullName;
 
     @Column(nullable = false, precision = 15, scale = 2)
-    private BigDecimal balance = BigDecimal.ZERO;
+    private BigDecimal balance;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("transactionDate DESC")
@@ -46,7 +46,7 @@ public class User {
     private LocalDateTime lockTime; // Added missing lockTime field
 
     @Column(nullable = false)
-    private boolean emailVerified = false;
+    private boolean emailVerified;
 
     private String verificationToken;
     private LocalDateTime verificationTokenExpiry;
@@ -54,12 +54,6 @@ public class User {
     private String resetToken;
     private LocalDateTime resetTokenExpiry;
 
-    // Convenient Constructor 1: Standard Registration
-    public User(String mobileNumber, String pin, String fullName, String email, boolean emailVerified) {
-        this(mobileNumber, pin, fullName, BigDecimal.ZERO, email, emailVerified);
-    }
-
-    // Convenient Constructor 2: Registration with Initial Balance
     public User(String mobileNumber, String pin, String fullName, BigDecimal balance, String email, boolean emailVerified) {
         this.mobileNumber = mobileNumber;
         this.pin = pin;

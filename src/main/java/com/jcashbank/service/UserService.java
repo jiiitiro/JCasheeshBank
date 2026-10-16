@@ -6,10 +6,6 @@ import com.jcashbank.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.InitialDirContext;
-import java.util.Hashtable;
-import java.util.regex.Pattern;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -18,67 +14,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final UserValidationService userValidation;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UserValidationService userValidation) {
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
+        this.userValidation = userValidation;
     }
 
-    // Validation Methods
-    private void validateMobileAndPin(String mobileNumber, String pin) {
-
-        if (mobileNumber == null || !mobileNumber.matches("^09\\d{9}$")) {
-            throw new BankingException("Invalid mobile number. It must start with '09' and be exactly 11 digits.");
-        }
-        if (pin == null || !pin.matches("^\\d{4}$")) {
-            throw new BankingException("Invalid PIN. It must be exactly 4 digits.");
-        }
-    }
-
-    private void validateRegistration(String fullName, String mobileNumber, String pin, String email) {
-        if (fullName == null || fullName.trim().isEmpty() || !fullName.matches("^[a-zA-Z\\s\\.\\-]+$")) {
-            throw new BankingException("Invalid full name. Please use only letters, spaces, dots, or hyphens.");
-        }
-        if (mobileNumber == null || !mobileNumber.matches("^09\\d{9}$")) {
-            throw new BankingException("Invalid mobile number. It must start with '09' and be exactly 11 digits.");
-        }
-        if (pin == null || !pin.matches("^\\d{4}$")) {
-            throw new BankingException("Invalid PIN. It must be exactly 4 digits.");
-        }
-
-        // Check if Mobile Number Already Exists
-        if (userRepository.findByMobileNumber(mobileNumber).isPresent()) {
-            throw new BankingException("This mobile number is already registered. Please use a different number or log in.");
-        }
-
-        // Check if Email Already Exists
-        if (userRepository.findByEmail(email).isPresent()) {
-            throw new BankingException("This email address is already registered.");
-        }
-    }
-
-    // Syntax Validation (Layer 1) ---
-    private boolean isValidEmailSyntax(String email) {
-        if (email == null) return false;
-        String emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
-        return Pattern.matches(emailRegex, email.trim());
-    }
-
-    // MX Record Domain Check (Layer 2) ---
-    private boolean hasValidMxRecord(String email) {
-        try {
-            String domain = email.substring(email.indexOf("@") + 1);
-            Hashtable<String, String> env = new Hashtable<>();
-            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
-            InitialDirContext ctx = new InitialDirContext(env);
-            Attributes attrs = ctx.getAttributes(domain, new String[] {"MX"});
-            return attrs != null && attrs.get("MX") != null;
-        } catch (Exception e) {
-            // Domain does not exist or has no active mail server
-            return false;
-        }
-    }
 
     // Proof Ownership (Layer 3)
     @Transactional
@@ -159,48 +103,20 @@ public class UserService {
         return user;
     }
 
-
-    private void sendLockoutEmail(User user) {
-        String token = UUID.randomUUID().toString();
-        user.setResetToken(token);
-        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
-        userRepository.saveAndFlush(user);
-
-        // Matches server port (e.g. 8081)
-        String resetLink = "http://localhost:8081/reset-pin?token=" + token;
-        String subject = "JCasheesh! - Account Locked & PIN Reset";
-        String body = "Hi " + user.getFullName() + ",\n\n" +
-                "Your JCasheesh! account has been locked due to 3 failed login attempts.\n\n" +
-                "You can reset your PIN and unlock your account by clicking the link below:\n" +
-                resetLink + "\n\n" +
-                "This link expires in 15 minutes.\n\n" +
-                "If you did not attempt to log in, please secure your account immediately.";
-
-        emailService.sendEmailAsync(user.getEmail(), subject, body);
-    }
-
-
-
     @Transactional(readOnly = true)
     public User findById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BankingException("User account was not found."));
     }
 
-    @Transactional(readOnly = true)
-    public User findByMobileNumber(String mobileNumber) {
-        return userRepository.findByMobileNumber(mobileNumber)
-                .orElseThrow(() -> new BankingException("Receiver account was not found."));
-    }
-
     public void processForgotPassword(String email) {
 
         // --- LAYER 1: Syntax Check --- EMAIL VALIDATION
-        if (!isValidEmailSyntax(email)) {
+        if (!userValidation.isValidEmailSyntax(email)) {
             throw new BankingException("Invalid email format syntax.");
         }
         // --- LAYER 2: MX Record Check --- EMAIL VALIDATION
-        if (!hasValidMxRecord(email)) {
+        if (!userValidation.hasValidMxRecord(email)) {
             throw new BankingException("The email domain does not exist or cannot receive mail.");
         }
 
@@ -253,16 +169,16 @@ public class UserService {
     @Transactional
     public User registerUser(User user, String rawPin) {
 
-        validateMobileAndPin(user.getMobileNumber(), rawPin);
+        userValidation.validateMobileAndPin(user.getMobileNumber(), rawPin);
 
-        validateRegistration(user.getFullName(), user.getMobileNumber(), rawPin, user.getEmail());
+        userValidation.validateRegistration(user.getFullName(), user.getMobileNumber(), rawPin, user.getEmail());
 
         // --- LAYER 1: Syntax Check --- EMAIL VALIDATION
-        if (!isValidEmailSyntax(user.getEmail())) {
+        if (!userValidation.isValidEmailSyntax(user.getEmail())) {
             throw new BankingException("Invalid email format syntax.");
         }
         // --- LAYER 2: MX Record Check --- EMAIL VALIDATION
-        if (!hasValidMxRecord(user.getEmail())) {
+        if (!userValidation.hasValidMxRecord(user.getEmail())) {
             throw new BankingException("The email domain does not exist or cannot receive mail.");
         }
 
@@ -280,42 +196,6 @@ public class UserService {
         emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getFullName(), token);
 
         return savedUser;
-    }
-
-    public String getMaskedNameByMobile(String mobileNumber) {
-        User user = userRepository.findByMobileNumber(mobileNumber.trim())
-                .orElseThrow(() -> new BankingException("Recipient mobile number not found."));
-
-        return maskFullName(user.getFullName());
-    }
-
-    /**
-     * Helper method to mask full names for Express Send privacy.
-     * Example: "Marian Flores" -> "MA••••N F."
-     */
-    private String maskFullName(String fullName) {
-        if (fullName == null || fullName.trim().isEmpty()) {
-            return "JCasheesh User";
-        }
-
-        String[] parts = fullName.trim().split("\\s+");
-        String firstName = parts[0];
-
-        // Mask First Name (keep first 2 chars, add dots, keep last char if long enough)
-        String maskedFirst;
-        if (firstName.length() <= 2) {
-            maskedFirst = firstName.toUpperCase() + "••";
-        } else {
-            maskedFirst = firstName.substring(0, 2).toUpperCase() + "••••" + firstName.substring(firstName.length() - 1).toUpperCase();
-        }
-
-        // Append Last Name Initial if available
-        if (parts.length > 1) {
-            String lastName = parts[parts.length - 1];
-            return maskedFirst + " " + lastName.substring(0, 1).toUpperCase() + ".";
-        }
-
-        return maskedFirst;
     }
 
 }

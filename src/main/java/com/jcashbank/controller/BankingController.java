@@ -5,6 +5,7 @@ import com.jcashbank.model.Transaction;
 import com.jcashbank.model.User;
 import com.jcashbank.service.TransactionService;
 import com.jcashbank.service.UserService;
+import com.jcashbank.service.UserValidationService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,10 +20,12 @@ public class BankingController {
 
     private final UserService userService;
     private final TransactionService transactionService;
+    private final UserValidationService userValidation;
 
-    public BankingController(UserService userService, TransactionService transactionService) {
+    public BankingController(UserService userService, TransactionService transactionService, UserValidationService userValidation) {
         this.userService = userService;
         this.transactionService = transactionService;
+        this.userValidation = userValidation;
     }
 
     @GetMapping({"/", "/login"})
@@ -294,14 +297,14 @@ public class BankingController {
             }
 
             // Validate recipient exists & fetch masked name
-            String maskedName = userService.getMaskedNameByMobile(recipientMobile.trim());
+            String maskedName = userValidation.getMaskedNameByMobile(recipientMobile.trim());
 
             model.addAttribute("user", sender);
             model.addAttribute("recipientName", maskedName);
             model.addAttribute("recipientMobile", recipientMobile.trim());
             model.addAttribute("amount", amount);
 
-            return "confirm-send";
+            return "confirm-transfer";
 
         } catch (Exception ex) {
             // Route errors back to transfer.html instead of uncaught exception view
@@ -328,18 +331,18 @@ public class BankingController {
             );
 
             model.addAttribute("transaction", transaction);
-            model.addAttribute("recipientName", userService.getMaskedNameByMobile(recipientMobile.trim()));
+            model.addAttribute("recipientName", userValidation.getMaskedNameByMobile(recipientMobile.trim()));
             model.addAttribute("recipientMobile", recipientMobile.trim());
 
-            return "receipt";
+            return "transaction-receipt";
 
         } catch (Exception ex) {
             model.addAttribute("user", sender);
-            model.addAttribute("recipientName", userService.getMaskedNameByMobile(recipientMobile.trim()));
+            model.addAttribute("recipientName", userValidation.getMaskedNameByMobile(recipientMobile.trim()));
             model.addAttribute("recipientMobile", recipientMobile.trim());
             model.addAttribute("amount", amount);
             model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Transfer failed.");
-            return "confirm-send";
+            return "confirm-transfer";
         }
     }
 }

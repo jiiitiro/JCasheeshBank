@@ -36,8 +36,6 @@ public class Transaction {
     @Column(nullable = false, unique = true)
     private String referenceNumber;
 
-    private LocalDateTime dateTime;
-
     public Transaction(TransactionType type, BigDecimal amount, String details, LocalDateTime transactionDate, User user, String referenceNumber, LocalDateTime dateTime) {
         this.type = type;
         this.amount = amount;
@@ -45,7 +43,6 @@ public class Transaction {
         this.transactionDate = transactionDate;
         this.user = user;
         this.referenceNumber = referenceNumber;
-        this.dateTime = dateTime;
     }
 
     public Transaction(TransactionType type, BigDecimal amount, String details) {
@@ -62,9 +59,6 @@ public class Transaction {
         }
         if (this.transactionDate == null) {
             this.transactionDate = LocalDateTime.now();
-        }
-        if (this.dateTime == null) {
-            this.dateTime = LocalDateTime.now();
         }
     }
 

@@ -8,7 +8,6 @@ import com.jcashbank.repository.TransactionRepository;
 import com.jcashbank.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -16,15 +15,17 @@ import java.util.List;
 public class TransactionService {
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final TransactionValidationService transactionValidationService;
 
-    public TransactionService(UserRepository userRepository, TransactionRepository transactionRepository) {
+    public TransactionService(UserRepository userRepository, TransactionRepository transactionRepository, TransactionValidationService transactionValidationService) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
+        this.transactionValidationService = transactionValidationService;
     }
 
     @Transactional
     public Transaction cashIn(Long userId, BigDecimal amount) {
-        validatePositiveAmount(amount);
+        transactionValidationService.validatePositiveAmount(amount);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BankingException("User account was not found."));
 
@@ -40,13 +41,12 @@ public class TransactionService {
         user.addTransaction(transaction);
         userRepository.save(user);
 
-        return transaction; // 👈 Return the newly created transaction
+        return transaction;
     }
-
 
     @Transactional
     public Transaction transfer(Long senderId, String receiverMobileNumber, BigDecimal amount) {
-        validatePositiveAmount(amount);
+        transactionValidationService.validatePositiveAmount(amount);
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new BankingException("Sender account was not found."));
         User receiver = userRepository.findByMobileNumber(receiverMobileNumber)
@@ -93,16 +93,10 @@ public class TransactionService {
         return sentTx;
     }
 
-
-
     @Transactional(readOnly = true)
     public List<Transaction> getTransactions(Long userId) {
         return transactionRepository.findByUserIdOrderByTransactionDateDesc(userId);
     }
 
-    private void validatePositiveAmount(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BankingException("Amount must be greater than zero.");
-        }
-    }
+
 }

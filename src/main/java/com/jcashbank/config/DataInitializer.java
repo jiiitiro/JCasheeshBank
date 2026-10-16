@@ -17,10 +17,10 @@ public class DataInitializer {
         return args -> {
             if (userRepository.count() == 0) {
                 User user1 = new User(
-                        "09616049255", passwordEncoder.encode("1234"), "Julito III Tiro", "julitoiiitiro@gmail.com", true);
+                        "09616049255", passwordEncoder.encode("1234"), "Julito III Tiro", new BigDecimal("0.00"), "julitoiiitiro@gmail.com", true);
 
                 User user2 = new User(
-                        "09181234567", passwordEncoder.encode("5678"), "Maria Santos", "tiro.julitoiii.june091985@gmail.com", true);
+                        "09181234567", passwordEncoder.encode("5678"), "Maria Santos", new BigDecimal("0.00"),"tiro.julitoiii.june091985@gmail.com", true);
 
                 User user3 = new User(
                         "09201234567", passwordEncoder.encode("9999"), "John Wick", new BigDecimal("1000.00"), "tiro.julitoiii.06091985@gmail.com", true);

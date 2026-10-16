@@ -4,6 +4,7 @@ package com.jcashbank.service;
 // import com.resend.services.emails.model.CreateEmailOptions;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -11,6 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
+@Getter
 public class EmailService {
 
     private final JavaMailSender mailSender;
@@ -28,10 +30,6 @@ public class EmailService {
     // Explicit Constructor Injection (No Lombok @RequiredArgsConstructor)
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
-    }
-
-    public String getBaseUrl() {
-        return baseUrl;
     }
 
     @Async // Runs asynchronously in background thread pool
