@@ -48,6 +48,12 @@ public class UserValidationService {
         }
     }
 
+    public void validatePin(String pin) {
+        if (pin == null || !pin.matches("^\\d{4}$")) {
+            throw new BankingException("Invalid PIN. It must be exactly 4 digits.");
+        }
+    }
+
     public boolean isValidEmailSyntax(String email) {
         if (email == null) return false;
         String emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";

@@ -142,6 +142,8 @@ public class UserService {
 
     @Transactional
     public void resetPin(String token, String newPin) {
+        userValidation.validatePin(newPin);
+
         User user = userRepository.findByResetToken(token)
                 .orElseThrow(() -> new BankingException("Invalid or expired password reset token."));
 
