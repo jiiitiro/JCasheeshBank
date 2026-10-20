@@ -1,6 +1,6 @@
 # Security Fixes: JCash Bank
 
-This document records the security problems found in the JCash Bank app and how each was fixed. All changes are on the `lombok` branch.
+This document records the security problems found in the JCash Bank app and how each was fixed. All changes were made on the `lombok` branch and merged into `main-dev`.
 
 ## Security fixes
 
@@ -67,10 +67,12 @@ This document records the security problems found in the JCash Bank app and how 
 | Registration errors appeared on the login tab | Uses `registerError` and reopens the register tab | `2c29c5d` |
 | The dashboard loaded the full transaction history to show 10 | Fetches only the latest 10 | `2c29c5d` |
 | Registration failed with a not-null error on `balance` | Restored the `BigDecimal.ZERO` default that was lost in the Lombok conversion | `02338e2` |
+| The forgot-PIN email linked to port 8080 instead of 8081 | Changed the reset link to `http://localhost:8081` (tested and working) | `02637fa` |
 
 ## Still open
 - **Weak fallback settings:** `application.properties` falls back to `postgres` and `dummy_key_for_dev` if the environment variables are missing.
 - **Unused setting:** `resend.api.key` is still in `application.properties` but nothing reads it.
 - **No automated tests:** the test dependency is in place, but none are written. Fixes 1, 2 and 7 are the most important to cover.
 - **Locking cost:** the account lock also reloads, and probably locks, the user's transaction rows, which gets slower as history grows.
-- **Not fully tested by hand:** only login, CSRF and the seed data were checked against the running app. The transfer, receipt refresh and PIN-reset flows still need a manual test.
+- **Hard-coded reset links:** both PIN-reset emails use `http://localhost:8081`, so they won't work on Railway or Render. The verification email already uses `app.base-url` (`APP_BASE_URL`); the reset links should use it too.
+- **Not fully tested by hand:** login, CSRF, the seed data and the forgot-PIN flow have been checked against the running app. The transfer and receipt-refresh flows still need a manual test.
