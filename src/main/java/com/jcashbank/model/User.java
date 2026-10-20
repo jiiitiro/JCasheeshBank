@@ -28,7 +28,7 @@ public class User {
     private String fullName;
 
     @Column(nullable = false, precision = 15, scale = 2)
-    private BigDecimal balance;
+    private BigDecimal balance = BigDecimal.ZERO;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("transactionDate DESC")
