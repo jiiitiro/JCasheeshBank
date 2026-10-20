@@ -21,7 +21,7 @@ public class DashboardController {
     public String dashboard(HttpSession session, Model model) {
         User user = sessionUser.getLoggedInUser(session);
         model.addAttribute("user", user);
-        model.addAttribute("transactions", transactionService.getTransactions(user.getId()));
+        model.addAttribute("transactions", transactionService.getRecentTransactions(user.getId()));
         return "dashboard";
     }
 

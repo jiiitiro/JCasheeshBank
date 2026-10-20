@@ -8,6 +8,8 @@ import java.util.Optional;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByUserIdOrderByTransactionDateDesc(Long userId);
 
+    List<Transaction> findTop10ByUserIdOrderByTransactionDateDesc(Long userId);
+
     Optional<Transaction> findByIdAndUserId(Long id, Long userId);
 
     Optional<Transaction> findByReferenceNumber(String referenceNumber);

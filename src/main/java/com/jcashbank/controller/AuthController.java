@@ -5,14 +5,19 @@ import com.jcashbank.model.User;
 import com.jcashbank.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import static com.jcashbank.controller.SessionUserProvider.SESSION_USER_ID;
 
 @Controller
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
     private final UserService userService;
 
     public AuthController(UserService userService) {
@@ -20,20 +25,14 @@ public class AuthController {
     }
 
     @GetMapping({"/", "/login"})
-    public String loginPage(
-            HttpSession session,
-            Model model,
-            @RequestParam(required = false) String success) {
+    public String loginPage(HttpSession session) {
 
         // If already logged in, go straight to dashboard
         if (session.getAttribute(SESSION_USER_ID) != null) {
             return "redirect:/dashboard";
         }
 
-        if (success != null && !success.isEmpty()) {
-            model.addAttribute("success", success);
-        }
-
+        // Any "success" message arrives as a flash attribute, already in the model
         return "login";
     }
 
@@ -82,6 +81,7 @@ public class AuthController {
             @RequestParam String email,
             @RequestParam String fullName,
             @RequestParam String pin,
+            RedirectAttributes redirectAttributes,
             Model model) {
         try {
             User user = new User();
@@ -91,17 +91,20 @@ public class AuthController {
 
             userService.registerUser(user, pin.trim());
 
-            return "redirect:/login?success=Registration successful! Please check your email to verify your account before logging in.";
+            redirectAttributes.addFlashAttribute("success",
+                    "Registration successful! Please check your email to verify your account before logging in.");
+            return "redirect:/login";
+        } catch (BankingException ex) {
+            model.addAttribute("registerError", ex.getMessage());
         } catch (Exception ex) {
-            String errorMessage = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
-
-            if (errorMessage == null || errorMessage.isEmpty()) {
-                errorMessage = "An unexpected error occurred during registration.";
-            }
-
-            model.addAttribute("error", errorMessage);
-            return "login";
+            // Don't show raw DB/mail errors to the user
+            log.error("Registration failed for {}", mobileNumber, ex);
+            model.addAttribute("registerError", "An unexpected error occurred during registration.");
         }
+
+        // Re-open the register tab so the error shows next to the form
+        model.addAttribute("showRegister", true);
+        return "login";
     }
 
     @GetMapping("/verify")
@@ -141,15 +144,14 @@ public class AuthController {
     public String processResetPin(
             @RequestParam String token,
             @RequestParam String newPin,
-            HttpSession session,
+            RedirectAttributes redirectAttributes,
             Model model) {
         try {
+            // resetPin also clears the stored failed-login counter and unlocks the account
             userService.resetPin(token, newPin.trim());
 
-            // Clear session failure counter so user gets fresh 3 attempts
-            session.removeAttribute("failedLoginAttempts");
-
-            return "redirect:/login?success=PIN successfully reset. You can now log in.";
+            redirectAttributes.addFlashAttribute("success", "PIN successfully reset. You can now log in.");
+            return "redirect:/login";
         } catch (BankingException ex) {
             model.addAttribute("error", ex.getMessage());
             model.addAttribute("token", token);

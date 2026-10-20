@@ -121,6 +121,12 @@ public class TransactionService {
         return transactionRepository.findByUserIdOrderByTransactionDateDesc(userId);
     }
 
+    // Dashboard "Recent Activity" only shows the latest 10, so don't load the full history
+    @Transactional(readOnly = true)
+    public List<Transaction> getRecentTransactions(Long userId) {
+        return transactionRepository.findTop10ByUserIdOrderByTransactionDateDesc(userId);
+    }
+
     // Only returns transactions owned by the user, so receipts can't be viewed by ID guessing
     @Transactional(readOnly = true)
     public Transaction getUserTransaction(Long userId, Long transactionId, TransactionType type) {

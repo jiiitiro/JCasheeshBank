@@ -5,6 +5,7 @@ import com.jcashbank.model.Transaction;
 import com.jcashbank.model.TransactionType;
 import com.jcashbank.model.User;
 import com.jcashbank.service.TransactionService;
+import com.jcashbank.service.TransactionValidationService;
 import com.jcashbank.service.UserValidationService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
@@ -19,12 +20,14 @@ import java.math.BigDecimal;
 @Controller
 public class TransferController {
     private final TransactionService transactionService;
+    private final TransactionValidationService transactionValidation;
     private final UserValidationService userValidation;
     private final SessionUserProvider sessionUser;
 
-    public TransferController(TransactionService transactionService, UserValidationService userValidation,
-                              SessionUserProvider sessionUser) {
+    public TransferController(TransactionService transactionService, TransactionValidationService transactionValidation,
+                              UserValidationService userValidation, SessionUserProvider sessionUser) {
         this.transactionService = transactionService;
+        this.transactionValidation = transactionValidation;
         this.userValidation = userValidation;
         this.sessionUser = sessionUser;
     }
@@ -45,6 +48,9 @@ public class TransferController {
         User sender = sessionUser.getLoggedInUser(session);
 
         try {
+            // Reject zero/negative amounts before showing a confirmation screen
+            transactionValidation.validatePositiveAmount(amount);
+
             // Check if user is attempting to send to themselves
             if (sender.getMobileNumber().equals(recipientMobile.trim())) {
                 throw new BankingException("You cannot transfer money to your own account.");
@@ -93,11 +99,22 @@ public class TransferController {
             return "redirect:/transfer/receipt/" + transaction.getId();
 
         } catch (Exception ex) {
+            String error = ex.getMessage() != null ? ex.getMessage() : "Transfer failed.";
             model.addAttribute("user", sender);
-            model.addAttribute("recipientName", userValidation.getMaskedNameByMobile(recipientMobile.trim()));
+            model.addAttribute("error", error);
+
+            // If the recipient can't be looked up (e.g. the account no longer exists), the confirm
+            // page has nothing to show, so send the user back to the transfer form instead
+            String recipientName;
+            try {
+                recipientName = userValidation.getMaskedNameByMobile(recipientMobile.trim());
+            } catch (BankingException lookupEx) {
+                return "transfer";
+            }
+
+            model.addAttribute("recipientName", recipientName);
             model.addAttribute("recipientMobile", recipientMobile.trim());
             model.addAttribute("amount", amount);
-            model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Transfer failed.");
             return "confirm-transfer";
         }
     }
