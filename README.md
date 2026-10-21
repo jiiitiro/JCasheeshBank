@@ -97,6 +97,6 @@ On first start with an empty database, `DataInitializer` creates three test acco
 
 | Mobile | PIN | Starting balance |
 |---|---|---|
-| 09616049255 | 1234 | ₱0.00 |
+| 09171234567 | 1234 | ₱0.00 |
 | 09181234567 | 5678 | ₱0.00 |
 | 09201234567 | 9999 | ₱1,000.00 |
