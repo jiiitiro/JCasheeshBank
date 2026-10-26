@@ -88,6 +88,8 @@ The project includes a multi-stage `Dockerfile` and a `docker-compose.yml` that 
    ```
 4. Open http://localhost:8081.
 
+To test from other devices on your LAN, or to export the images to another machine (e.g. Windows 11), see [docs/DOCKER-EXPORT.md](docs/DOCKER-EXPORT.md).
+
 ## 💻 Running Locally (IntelliJ)
 
 1. Start only the database: `docker compose up -d postgres` (exposed on `localhost:5434`).
