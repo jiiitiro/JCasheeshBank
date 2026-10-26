@@ -117,13 +117,18 @@ set -a; . ./.env; set +a
 docker exec jcasheesh-db pg_dump -U "$POSTGRES_USER" --clean --if-exists "$POSTGRES_DB" > ~/jcash-export/db.sql
 ```
 
-And create `~/jcash-export/import-db.ps1` for the Windows side:
+And create `~/jcash-export/import-db.bat` for the Windows side:
 
-```powershell
-# Run in PowerShell from this folder AFTER `docker compose up -d`
-$envVars = Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ConvertFrom-StringData
-Get-Content db.sql -Raw | docker exec -i jcasheesh-db psql -U $envVars.POSTGRES_USER $envVars.POSTGRES_DB
+```bat
+@echo off
+REM Imports db.sql into the jcasheesh-db container. Run AFTER `docker compose up -d`.
+cd /d "%~dp0"
+for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do set "%%a=%%b"
+docker exec -i jcasheesh-db psql -U %POSTGRES_USER% %POSTGRES_DB% < db.sql
+pause
 ```
+
+A `.bat` is used instead of PowerShell because it can be double-clicked, always runs from its own folder, and `cmd`'s `<` redirect passes the file through byte-for-byte (Windows PowerShell 5.1 can garble non-ASCII characters like `₱` or `ñ` when piping to native commands).
 
 ### On Windows 11: load and run
 
@@ -134,10 +139,8 @@ Get-Content db.sql -Raw | docker exec -i jcasheesh-db psql -U $envVars.POSTGRES_
    docker load -i jcash-images.tar.gz
    docker compose up -d
    ```
-4. *(Optional)* Import data once the app has started (~30 s):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\import-db.ps1
-   ```
+4. *(Optional)* Import data once the app has started (~30 s): double-click `import-db.bat`, or run `.\import-db.bat`.
+   If you get *"file does not exist"*, run `dir` — you're likely in the wrong folder, or Windows renamed the file (e.g. `import-db.bat.txt`; extensions are hidden by default).
 5. Open http://localhost:8081.
 
 #### Reaching it from other devices on the Windows PC's network
