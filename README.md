@@ -2,6 +2,8 @@
 
 A modern, full-stack Spring Boot banking application built with *Spring Data JPA*, *Spring Web*, and *Thymeleaf*, enhanced with advanced security features, asynchronous email verification, and a sleek, responsive *Tailwind CSS* glassmorphism interface.
 
+📄 **Project Portfolio (PDF):** [docs/JCasheeshBank-Project-Portfolio.pdf](docs/JCasheeshBank-Project-Portfolio.pdf) — project description, database schema, source code highlights, and screenshots of every screen.
+
 ---
 
 ## 🚀 Key Features Implemented
